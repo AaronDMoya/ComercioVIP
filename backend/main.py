@@ -32,4 +32,4 @@ async def startup_event():
         logger.warning(f"No se pudieron crear las tablas al iniciar: {e}")
         logger.info("El servidor continuará, pero las tablas deben crearse manualmente o cuando la conexión esté disponible")
 
-app.include_router(router)
+app.include_router(router, prefix="/api")
