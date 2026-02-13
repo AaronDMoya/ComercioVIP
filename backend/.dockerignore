@@ -43,8 +43,8 @@ htmlcov/
 # Logs
 *.log
 
-# Environment variables
-.env
+# Environment variables (NO excluir .env para que se copie al contenedor)
+# .env  # NO excluir - necesario para cargar variables
 .env.local
 .env.*.local
 

@@ -1,6 +1,12 @@
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
+# Buscar el archivo .env en el directorio raíz del proyecto (donde está main.py)
+env_path = Path(__file__).parent.parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
+
+# También intentar cargar desde el directorio actual (por si acaso)
 load_dotenv()
 
 # Variables acceso a la base de datos
