@@ -3,7 +3,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.core.config import RDSHOST, DB_NAME, PORT, PASSWORD, USER
 
-# Construccion de URL
+# Construccion de URL con validación
+if not all([USER, PASSWORD, RDSHOST, DB_NAME, PORT]):
+    raise ValueError("Faltan variables de entorno requeridas para la conexión a la base de datos: USER, PASSWORD, RDSHOST, DB_NAME, PORT")
+
 DATABASE_URL = f"postgresql://{USER}:{PASSWORD}@{RDSHOST}:{PORT}/{DB_NAME}"
 
 # Crear el motor de SQLAlchemy

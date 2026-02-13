@@ -6,7 +6,7 @@ load_dotenv()
 # Variables acceso a la base de datos
 RDSHOST = os.getenv("RDSHOST")
 DB_NAME = os.getenv("DB_NAME")
-PORT = os.getenv("PORT")
+PORT = os.getenv("PORT", "5432")  # Puerto por defecto de PostgreSQL
 USER = os.getenv("USER")
 PASSWORD = os.getenv("PASSWORD")
 

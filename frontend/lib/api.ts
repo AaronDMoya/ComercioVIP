@@ -1,6 +1,6 @@
 // URL base de la API obtenida de las variables de entorno
 // En Next.js, las variables de entorno del cliente deben comenzar con NEXT_PUBLIC_
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://comerciovip.com/api";
 
 /**
  * Función helper para realizar peticiones HTTP a la API
