@@ -25,11 +25,15 @@ app.add_middleware(
 # Evento de inicio: crear tablas de la base de datos
 @app.on_event("startup")
 async def startup_event():
-    try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Tablas de la base de datos creadas/verificadas exitosamente")
-    except Exception as e:
-        logger.warning(f"No se pudieron crear las tablas al iniciar: {e}")
-        logger.info("El servidor continuará, pero las tablas deben crearse manualmente o cuando la conexión esté disponible")
+    from app.core.database import engine
+    if engine:
+        try:
+            Base.metadata.create_all(bind=engine)
+            logger.info("Tablas de la base de datos creadas/verificadas exitosamente")
+        except Exception as e:
+            logger.warning(f"No se pudieron crear las tablas al iniciar: {e}")
+            logger.info("El servidor continuará, pero las tablas deben crearse manualmente o cuando la conexión esté disponible")
+    else:
+        logger.warning("Motor de base de datos no disponible. Configure las variables de entorno para habilitar la conexión.")
 
 app.include_router(router, prefix="/api")
