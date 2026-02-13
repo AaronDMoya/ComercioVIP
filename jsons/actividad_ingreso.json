@@ -1,0 +1,18 @@
+{
+    "actividad_1": {
+        "tipo": "ingreso", 
+        "hora": "11:00AM"
+    },
+    "actividad_2": {
+        "tipo": "salida", 
+        "hora": "2:30PM"
+    },
+    "actividad_3": {
+        "tipo": "reingreso", 
+        "hora": "3:00PM"
+    },
+    "actividad_4": {
+        "tipo": "salida", 
+        "hora": "6:00PM"
+    }
+}

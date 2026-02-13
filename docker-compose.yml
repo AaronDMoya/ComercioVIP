@@ -1,0 +1,52 @@
+# Docker Compose para desarrollo local
+# Para producción en Amazon Linux 2023, usar los Dockerfiles directamente
+
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: registros-votacion-backend
+    ports:
+      - "8000:8000"
+    environment:
+      # Variables de base de datos (ajustar según tu configuración)
+      - RDSHOST=localhost
+      - DB_NAME=registros_votacion
+      - PORT=5432
+      - USER=postgres
+      - PASSWORD=postgres
+      # Variables de seguridad JWT
+      - SECRET_KEY=your-secret-key-change-in-production
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      # CORS - permitir frontend
+      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+    volumes:
+      # Montar código para desarrollo (opcional)
+      - ./backend:/app
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: registros-votacion-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      # URL del backend API
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
