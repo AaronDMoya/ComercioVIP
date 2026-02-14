@@ -11,7 +11,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="API", version="1.0.0")
+app = FastAPI(title="API", version="1.0.0", root_path="/api")
 
 # Configuración de CORS (configurable mediante variable de entorno CORS_ORIGINS)
 app.add_middleware(
@@ -36,4 +36,4 @@ async def startup_event():
     else:
         logger.warning("Motor de base de datos no disponible. Configure las variables de entorno para habilitar la conexión.")
 
-app.include_router(router, prefix="/api")
+app.include_router(router)
