@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAsamblea } from "@/context/AsambleaContext";
-import { Card, CardContent } from "@/components/ui/card";
 import { Container } from "@/components/ui/container";
+
+// Force refresh - all Card components have been replaced with Container
 import { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip, CartesianGrid } from "recharts";
 import { CircularProgressbar, buildStyles } from "react-circular-progressbar";
 import "react-circular-progressbar/dist/styles.css";
@@ -234,37 +235,33 @@ export default function VistaPantalla() {
     <div className="fixed inset-0 w-screen h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 p-4 lg:p-6 xl:p-8 overflow-hidden">
       <div className="w-full h-full max-w-full mx-auto flex flex-col gap-3 lg:gap-4 xl:gap-6 min-h-0">
         {/* Header con título, fecha y hora */}
-        <div className="bg-white rounded-2xl shadow-xl p-4 lg:p-6 xl:p-8 border border-gray-200 flex-shrink-0">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 lg:gap-4 xl:gap-6">
+        <div className="bg-white rounded-2xl shadow-xl p-2 lg:p-3 xl:p-4 border border-gray-200 flex-shrink-0">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2 lg:gap-3 xl:gap-4">
             <div className="flex-1 min-w-0">
-              <h1 className="text-2xl lg:text-3xl xl:text-4xl 2xl:text-5xl font-bold text-gray-900 mb-2 lg:mb-3 break-words">
+              <h1 className="text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl font-bold text-gray-900 break-words">
                 {asamblea.title}
               </h1>
-              <div className="flex flex-wrap items-center gap-2 lg:gap-3 xl:gap-4 text-gray-600">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 lg:w-5 lg:h-5 text-blue-600 flex-shrink-0" />
-                  <span className="text-sm lg:text-base xl:text-lg font-medium">
-                    {formatearFechaAsamblea(fechaAsamblea)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 lg:w-5 lg:h-5 text-green-600 flex-shrink-0" />
-                  <span className="text-sm lg:text-base xl:text-lg font-medium font-mono">
-                    {format(currentTime, "HH:mm:ss")}
-                  </span>
-                </div>
-              </div>
             </div>
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl px-4 lg:px-5 xl:px-6 py-3 lg:py-4 xl:py-5 shadow-md flex-shrink-0">
-              <div className="text-xs lg:text-sm text-blue-600 font-medium mb-1 uppercase tracking-wide">
-                Fecha Actual
+            <div className="flex flex-col sm:flex-row gap-2 lg:gap-3 xl:gap-4">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 border-2 border-blue-200 rounded-xl px-3 lg:px-4 xl:px-5 py-2 lg:py-3 xl:py-4 shadow-md flex-shrink-0">
+                <div className="text-xs text-blue-600 font-medium mb-0.5 uppercase tracking-wide">
+                  Fecha Actual
+                </div>
+                <div className="text-base lg:text-lg xl:text-xl 2xl:text-2xl font-bold text-blue-900">
+                  {currentTime.toLocaleDateString('es-ES', { 
+                    weekday: 'long', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </div>
               </div>
-              <div className="text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-bold text-blue-900">
-                {currentTime.toLocaleDateString('es-ES', { 
-                  weekday: 'long', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
+              <div className="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-200 rounded-xl px-3 lg:px-4 xl:px-5 py-2 lg:py-3 xl:py-4 shadow-md flex-shrink-0">
+                <div className="text-xs text-green-600 font-medium mb-0.5 uppercase tracking-wide">
+                  Hora Actual
+                </div>
+                <div className="text-base lg:text-lg xl:text-xl 2xl:text-2xl font-bold text-green-900 font-mono">
+                  {format(currentTime, "HH:mm:ss")}
+                </div>
               </div>
             </div>
           </div>
@@ -273,8 +270,8 @@ export default function VistaPantalla() {
         {/* Cards de estadísticas principales */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 xl:gap-6 flex-shrink-0">
           {/* Quorum Presente */}
-          <Card className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-shadow flex-shrink-0">
-            <CardContent className="p-4 lg:p-5 xl:p-6 flex flex-col">
+          <Container className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-shadow flex-shrink-0 py-0">
+            <div className="p-4 lg:p-5 xl:p-6 flex flex-col">
               <div className="flex items-center justify-between mb-2 lg:mb-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs lg:text-sm font-medium text-gray-500 mb-1">Quorum Presente</p>
@@ -312,12 +309,12 @@ export default function VistaPantalla() {
                   </span>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </Container>
 
           {/* Coeficiente Presente */}
-          <Card className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-shadow flex-shrink-0">
-            <CardContent className="p-4 lg:p-5 xl:p-6 flex flex-col">
+          <Container className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden hover:shadow-xl transition-shadow flex-shrink-0 py-0">
+            <div className="p-4 lg:p-5 xl:p-6 flex flex-col">
               <div className="flex items-center justify-between mb-2 lg:mb-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs lg:text-sm font-medium text-gray-500 mb-1">Coeficiente Presente</p>
@@ -355,12 +352,12 @@ export default function VistaPantalla() {
                   </span>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </Container>
 
           {/* Total Registros */}
-          <Card className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow flex-shrink-0">
-            <CardContent className="p-4 lg:p-5 xl:p-6 flex items-center">
+          <Container className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow flex-shrink-0 py-0">
+            <div className="p-4 lg:p-5 xl:p-6 flex items-center">
               <div className="flex items-center gap-2 lg:gap-3 w-full">
                 <div className="w-10 h-10 lg:w-12 lg:h-12 xl:w-14 xl:h-14 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Users className="w-5 h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 text-green-600" />
@@ -376,12 +373,12 @@ export default function VistaPantalla() {
                   )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </Container>
 
           {/* Registros Presentes */}
-          <Card className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow flex-shrink-0">
-            <CardContent className="p-4 lg:p-5 xl:p-6 flex items-center">
+          <Container className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow flex-shrink-0 py-0">
+            <div className="p-4 lg:p-5 xl:p-6 flex items-center">
               <div className="flex items-center gap-2 lg:gap-3 w-full">
                 <div className="w-10 h-10 lg:w-12 lg:h-12 xl:w-14 xl:h-14 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                   <Users className="w-5 h-5 lg:w-6 lg:h-6 xl:w-7 xl:h-7 text-blue-600" />
@@ -397,56 +394,58 @@ export default function VistaPantalla() {
                   )}
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </Container>
         </div>
 
         {/* Gráfico de tendencia de ingreso */}
-        <Card className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow flex-1 min-h-0 flex flex-col">
-          <CardContent className="p-4 lg:p-5 xl:p-6 flex-1 min-h-0 flex flex-col">
-            <div className="mb-2 lg:mb-3 xl:mb-4 flex-shrink-0">
-              <h2 className="text-lg lg:text-xl xl:text-2xl 2xl:text-3xl font-bold text-gray-900 mb-1 lg:mb-2">Tendencia de Ingreso</h2>
-              <p className="text-xs lg:text-sm xl:text-base text-gray-600">Monitoreo de asistencia en tiempo real</p>
+        <Container className="bg-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl transition-shadow flex-1 min-h-0 flex flex-col py-0">
+          <div className="p-3 lg:p-4 xl:p-5 flex-1 min-h-0 flex flex-col">
+            <div className="mb-2 lg:mb-3 flex-shrink-0">
+              <h2 className="text-base lg:text-lg xl:text-xl 2xl:text-2xl font-bold text-gray-900 mb-0.5 lg:mb-1">Tendencia de Ingreso</h2>
+              <p className="text-xs lg:text-sm text-gray-600">Monitoreo de asistencia en tiempo real</p>
             </div>
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 w-full h-full">
               {isLoading ? (
-                <div className="flex items-center justify-center h-full">
+                <div className="flex items-center justify-center h-full w-full">
                   <p className="text-gray-500">Cargando estadísticas...</p>
                 </div>
               ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={chartData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                    <XAxis 
-                      dataKey="hora" 
-                      angle={-45}
-                      textAnchor="end"
-                      height={80}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip 
-                      contentStyle={{
-                        backgroundColor: "white",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "8px",
-                        padding: "8px 12px"
-                      }}
-                    />
-                    <Bar 
-                      dataKey="personas" 
-                      fill="#3b82f6" 
-                      radius={[8, 8, 0, 0]}
-                      name="Personas"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div className="w-full h-full min-h-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={chartData}
+                      margin={{ top: 10, right: 20, left: 10, bottom: 50 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                      <XAxis 
+                        dataKey="hora" 
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
+                        tick={{ fontSize: 10 }}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: "white",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "8px",
+                          padding: "8px 12px"
+                        }}
+                      />
+                      <Bar 
+                        dataKey="personas" 
+                        fill="#3b82f6" 
+                        radius={[8, 8, 0, 0]}
+                        name="Personas"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </Container>
       </div>
     </div>
   );

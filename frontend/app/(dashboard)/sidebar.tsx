@@ -16,19 +16,10 @@ import {
   Users,
   ClipboardList,
   Scale,
-  Settings,
   LogOut,
-  User,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LogoutDialog } from "@/components/dialog/LogoutDialog";
@@ -152,30 +143,16 @@ export default function AppSidebar() {
             </div>
           </div>
 
-          {/* Botón con DropdownMenu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-gray-700 hover:bg-gray-200 transition-transform duration-200 hover:rotate-90">
-                <Settings className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem>
-                <User className="w-4 h-4 mr-2" /> Perfil
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="w-4 h-4 mr-2" /> Configuración
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                variant="destructive" 
-                onClick={() => setShowLogoutDialog(true)}
-                className="cursor-pointer"
-              >
-                <LogOut className="w-4 h-4 mr-2" /> Cerrar sesión
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Botón de cerrar sesión */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setShowLogoutDialog(true)}
+            className="text-red-600 hover:bg-red-50 hover:text-red-700 transition-transform duration-200 hover:scale-110"
+            title="Cerrar sesión"
+          >
+            <LogOut className="w-4 h-4" />
+          </Button>
         </div>
       )}
 

@@ -80,11 +80,11 @@ export default function AsambleaSelector() {
         </Select>
         {asambleaSeleccionada && (
           <>
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="px-2 py-1 bg-green-100 text-green-800 rounded-md text-xs font-medium">
-                ACTIVA
-              </span>
-            </div>
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <span className="px-2 py-1 bg-green-100 text-green-800 rounded-md text-xs font-medium">
+              ACTIVA
+            </span>
+          </div>
             <Button
               variant="outline"
               size="icon"
