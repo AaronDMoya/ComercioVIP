@@ -11,7 +11,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="API", version="1.0.0", root_path="/api")
+app = FastAPI(title="API", version="1.0.0")
 
 # Configuración de CORS (configurable mediante variable de entorno CORS_ORIGINS)
 app.add_middleware(
