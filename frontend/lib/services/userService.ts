@@ -61,3 +61,25 @@ export async function getUsers(params: GetUsersParams = {}): Promise<UsersRespon
     throw error;
   }
 }
+
+/**
+ * Elimina un usuario por ID
+ * 
+ * @param userId - ID del usuario a eliminar
+ */
+export async function deleteUser(userId: string): Promise<void> {
+  try {
+    const response = await apiFetch(`/users/${userId}`, {
+      method: "DELETE",
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      const errorMessage = errorData.detail || `Error al eliminar usuario: ${response.status}`;
+      throw new Error(errorMessage);
+    }
+  } catch (error) {
+    console.error("Error al eliminar usuario:", error);
+    throw error;
+  }
+}

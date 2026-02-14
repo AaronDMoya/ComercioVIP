@@ -5,14 +5,25 @@ import { Button } from "@/components/ui/button"
 import { Container } from "@/components/ui/container";
 import { CreateUserDialog } from "@/components/dialog/CreateUserDialog"
 import { EditUserDialog } from "@/components/dialog/EditUserDialog"
-import { Search, Edit, UserPlus } from "lucide-react";
+import { Search, Edit, UserPlus, Trash2 } from "lucide-react";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { TableRow, TableCell } from "@/components/ui/table"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { getUsers, type User } from "@/lib/services/userService"
+import { getUsers, deleteUser, type User } from "@/lib/services/userService"
 import { toast } from "sonner"
 import { DataTable, type Column } from "@/components/my-ui/DataTable"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Loader2 } from "lucide-react"
 
 export default function SearchOperarios() {
   const [users, setUsers] = useState<User[]>([]);
@@ -25,6 +36,11 @@ export default function SearchOperarios() {
   // Estado para el diálogo de editar usuario
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  // Estado para el dialog de confirmación de eliminación
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Estado para itemsPerPage calculado por DataTable
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -99,6 +115,25 @@ export default function SearchOperarios() {
     </TableRow>
   );
   
+  // Función para manejar la eliminación de usuario
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteUser(userToDelete.id);
+      toast.success("Usuario eliminado exitosamente");
+      setIsDeleteDialogOpen(false);
+      setUserToDelete(null);
+      loadUsers();
+    } catch (error) {
+      console.error("Error al eliminar usuario:", error);
+      toast.error("Error al eliminar el usuario");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Función para renderizar cada fila de usuario
   const renderUserRow = (user: User, index: number) => (
     <TableRow 
@@ -116,18 +151,32 @@ export default function SearchOperarios() {
       </TableCell>
       <TableCell>{getRolLabel(user.is_admin)}</TableCell>
       <TableCell className="text-right">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="w-8 h-8 transition-transform duration-200 hover:scale-110"
-          onClick={() => {
-            setEditingUser(user);
-            setIsEditDialogOpen(true);
-          }}
-        >
-          <Edit className="w-4 h-4" />
-          <span className="sr-only">Editar usuario</span>
-        </Button>
+        <div className="flex items-center justify-end gap-2">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="w-8 h-8 transition-transform duration-200 hover:scale-110"
+            onClick={() => {
+              setEditingUser(user);
+              setIsEditDialogOpen(true);
+            }}
+          >
+            <Edit className="w-4 h-4" />
+            <span className="sr-only">Editar usuario</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50 transition-transform duration-200 hover:scale-110"
+            onClick={() => {
+              setUserToDelete(user);
+              setIsDeleteDialogOpen(true);
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="sr-only">Eliminar usuario</span>
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   );
@@ -190,17 +239,18 @@ export default function SearchOperarios() {
     return colors[colorIndex] || "bg-gray-600";
   };
   return (
-    <div className="w-full flex flex-col gap-6 animate-fade-in min-h-0 flex-1">
+    <div className="w-full flex flex-col gap-4 md:gap-6 animate-fade-in min-h-0 flex-1 overflow-y-auto md:overflow-hidden">
       {/* Container de búsqueda */}
-      <Container className="flex flex-col gap-4 p-4 w-full animate-fade-in-down flex-shrink-0">
-        <div className="flex flex-col md:flex-row items-center gap-4">
+      <Container className="flex flex-col gap-3 md:gap-4 p-3 md:p-4 w-full animate-fade-in-down flex-shrink-0">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
           {/* Input de búsqueda */}
-          <div className="flex-1 w-full">
+          <div className="flex-1 w-full min-w-0">
             <InputGroup>
               <InputGroupInput 
                 placeholder="Buscar usuarios por nombre, apellido o usuario" 
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
+                className="text-sm md:text-base"
               />
               <InputGroupAddon>
                 <Search/>
@@ -208,12 +258,12 @@ export default function SearchOperarios() {
             </InputGroup>
           </div>
 
-          {/* Filtros */}
-          <div className="flex gap-2 items-center">
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600 font-medium whitespace-nowrap">Rol:</label>
+          {/* Filtros - Horizontal en desktop */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <label className="text-xs md:text-sm text-gray-600 font-medium whitespace-nowrap">Rol:</label>
               <Select value={filterRol} onValueChange={handleFilterRol}>
-                <SelectTrigger className="w-[160px]">
+                <SelectTrigger className="w-full sm:w-[140px] lg:w-[160px] h-9 md:h-10">
                   <SelectValue placeholder="Todos los roles" />
                 </SelectTrigger>
                 <SelectContent>
@@ -230,9 +280,10 @@ export default function SearchOperarios() {
 
           <CreateUserDialog
             trigger={
-              <Button className="h-full bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
-                <UserPlus/>
-                Registrar Usuario
+              <Button className="h-9 md:h-10 bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 whitespace-nowrap flex-shrink-0">
+                <UserPlus className="w-4 h-4"/>
+                <span className="hidden sm:inline">Registrar Usuario</span>
+                <span className="sm:hidden">Registrar</span>
               </Button>
             }
             onUserCreated={loadUsers}
@@ -261,6 +312,36 @@ export default function SearchOperarios() {
         onOpenChange={setIsEditDialogOpen}
         onUserUpdated={loadUsers}
       />
+
+      {/* Dialog de confirmación de eliminación */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro de eliminar este usuario?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente el usuario "{userToDelete ? getFullName(userToDelete) : ''}" 
+              ({userToDelete?.username}). Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

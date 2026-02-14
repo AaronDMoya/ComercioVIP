@@ -74,3 +74,13 @@ def update_user(db: Session, user_id: UUID, user_data: dict):
     db.commit()
     db.refresh(user)
     return user
+
+# Eliminar un usuario
+def delete_user(db: Session, user_id: UUID):
+    user = get_by_id(db, user_id)
+    if not user:
+        return False
+    
+    db.delete(user)
+    db.commit()
+    return True

@@ -137,7 +137,7 @@ export default function RegistrosTable() {
 
   return (
     <div className="w-full h-full min-h-0 overflow-y-auto overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-      <Table className="w-full">
+      <Table className="w-full min-w-[1000px]">
         <TableHeader>
           <TableRow className="h-10 bg-gradient-to-r from-gray-50 to-gray-100/50 border-b border-gray-200 hover:bg-gray-100/50">
             <TableHead className="py-2.5 px-4 text-xs font-semibold text-gray-700 uppercase tracking-wider w-12 text-center">#</TableHead>

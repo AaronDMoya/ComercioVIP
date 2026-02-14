@@ -4,16 +4,27 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Container } from "@/components/ui/container";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Button } from "@/components/ui/button"
-import { Search, Filter, MoreHorizontalIcon } from "lucide-react";
+import { Search, Filter, MoreHorizontalIcon, Trash2 } from "lucide-react";
 import { TableRow, TableCell } from "@/components/ui/table"
 import { AsambleaDetailsDialog } from "@/components/dialog/AsambleaDetailsDialog"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DataTable, type Column } from "@/components/my-ui/DataTable"
 import { CreateAsambleaDialog } from "@/components/dialog/CreateAsambleaDialog"
-import { getAsambleas, type Asamblea } from "@/lib/services/asambleaService"
+import { getAsambleas, deleteAsamblea, type Asamblea } from "@/lib/services/asambleaService"
 import { toast } from "sonner"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DateRangePicker } from "@/components/ui/date-range-picker"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { Loader2 } from "lucide-react"
 
 export default function SearchAsambleas() {
   const [asambleas, setAsambleas] = useState<Asamblea[]>([]);
@@ -32,6 +43,11 @@ export default function SearchAsambleas() {
   // Estado para el dialog de detalles
   const [selectedAsambleaId, setSelectedAsambleaId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  
+  // Estado para el dialog de confirmación de eliminación
+  const [asambleaToDelete, setAsambleaToDelete] = useState<Asamblea | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // Ref para el timeout del debounce
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -84,7 +100,23 @@ export default function SearchAsambleas() {
       setTotalAsambleas(response.total);
     } catch (error) {
       console.error("Error al cargar asambleas:", error);
-      toast.error("Error al cargar las asambleas");
+      
+      // Mensaje de error más específico
+      let errorMessage = "Error al cargar las asambleas";
+      if (error instanceof Error) {
+        if (error.message.includes("No se pudo conectar") || error.message.includes("Failed to fetch")) {
+          errorMessage = "No se pudo conectar con el servidor. Verifica que el backend esté corriendo.";
+        } else if (error.message.includes("ConnectionError")) {
+          errorMessage = "Error de conexión. Verifica que el backend esté disponible.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(errorMessage);
+      // Limpiar datos en caso de error
+      setAsambleas([]);
+      setTotalAsambleas(0);
     } finally {
       setIsLoading(false);
     }
@@ -188,6 +220,25 @@ export default function SearchAsambleas() {
     }
   };
 
+  // Función para manejar la eliminación de asamblea
+  const handleDeleteAsamblea = async () => {
+    if (!asambleaToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteAsamblea(asambleaToDelete.id);
+      toast.success("Asamblea eliminada exitosamente");
+      setIsDeleteDialogOpen(false);
+      setAsambleaToDelete(null);
+      loadAsambleas();
+    } catch (error) {
+      console.error("Error al eliminar asamblea:", error);
+      toast.error("Error al eliminar la asamblea");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Función para renderizar cada fila de asamblea
   const renderAsambleaRow = (asamblea: Asamblea, index: number) => (
     <TableRow 
@@ -203,34 +254,49 @@ export default function SearchAsambleas() {
         </span>
       </TableCell>
       <TableCell className="text-right">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="w-8 h-8"
-          onClick={() => {
-            setSelectedAsambleaId(asamblea.id);
-            setIsDialogOpen(true);
-          }}
-        >
-          <MoreHorizontalIcon />
-          <span className="sr-only">Ver detalles</span>
-        </Button>
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-8 h-8"
+            onClick={() => {
+              setSelectedAsambleaId(asamblea.id);
+              setIsDialogOpen(true);
+            }}
+          >
+            <MoreHorizontalIcon />
+            <span className="sr-only">Ver detalles</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-8 h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+            onClick={() => {
+              setAsambleaToDelete(asamblea);
+              setIsDeleteDialogOpen(true);
+            }}
+          >
+            <Trash2 className="w-4 h-4" />
+            <span className="sr-only">Eliminar asamblea</span>
+          </Button>
+        </div>
       </TableCell>
     </TableRow>
   );
 
   return (
-    <div className="w-full flex flex-col gap-6 animate-fade-in min-h-0 flex-1">
+    <div className="w-full flex flex-col gap-4 md:gap-6 animate-fade-in min-h-0 flex-1 overflow-y-auto md:overflow-hidden">
       {/* Container de búsqueda */}
-      <Container className="flex flex-col gap-4 p-4 w-full animate-fade-in-down flex-shrink-0">
-        <div className="flex flex-col md:flex-row items-center gap-4">
+      <Container className="flex flex-col gap-3 md:gap-4 p-3 md:p-4 w-full animate-fade-in-down flex-shrink-0">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
           {/* Input de búsqueda */}
-          <div className="flex-1 w-full">
+          <div className="flex-1 w-full min-w-0">
             <InputGroup>
               <InputGroupInput 
                 placeholder="Buscar asamblea por título o descripción" 
                 value={searchTerm}
                 onChange={(e) => handleSearch(e.target.value)}
+                className="text-sm md:text-base"
               />
               <InputGroupAddon>
                 <Search/>
@@ -238,12 +304,12 @@ export default function SearchAsambleas() {
             </InputGroup>
           </div>
 
-          {/* Filtros */}
-          <div className="flex gap-2 flex-wrap items-center">
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600 font-medium whitespace-nowrap">Estado:</label>
+          {/* Filtros - Horizontal en desktop */}
+          <div className="flex flex-col sm:flex-row gap-2 lg:gap-3 items-stretch sm:items-center flex-shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <label className="text-xs md:text-sm text-gray-600 font-medium whitespace-nowrap">Estado:</label>
               <Select value={filterEstado} onValueChange={handleFilterEstado}>
-                <SelectTrigger className="w-[160px] h-full">
+                <SelectTrigger className="w-full sm:w-[140px] lg:w-[160px] h-9 md:h-10">
                   <SelectValue placeholder="Todos los estados" />
                 </SelectTrigger>
                 <SelectContent>
@@ -259,22 +325,23 @@ export default function SearchAsambleas() {
             </div>
             
             {/* Filtro de rango de fechas */}
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600 font-medium whitespace-nowrap">Rango:</label>
+            <div className="flex items-center gap-2 min-w-0">
+              <label className="text-xs md:text-sm text-gray-600 font-medium whitespace-nowrap">Rango:</label>
               <DateRangePicker
                 fechaDesde={fechaDesde}
                 fechaHasta={fechaHasta}
                 onFechaDesdeChange={handleFechaDesde}
                 onFechaHastaChange={handleFechaHasta}
-                className="w-[280px] h-full"
+                className="w-full sm:w-[240px] lg:w-[280px] h-9 md:h-10"
               />
             </div>
           </div>
 
           <CreateAsambleaDialog
             trigger={
-              <Button className="h-full bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
-                + Nueva Asamblea
+              <Button className="h-9 md:h-10 bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2 whitespace-nowrap flex-shrink-0">
+                <span className="hidden sm:inline">+ Nueva Asamblea</span>
+                <span className="sm:hidden">+ Nueva</span>
               </Button>
             }
             onAsambleaCreated={loadAsambleas}
@@ -304,6 +371,36 @@ export default function SearchAsambleas() {
         onOpenChange={setIsDialogOpen}
         onAsambleaUpdated={loadAsambleas}
       />
+
+      {/* Dialog de confirmación de eliminación */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Estás seguro de eliminar esta asamblea?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente la asamblea "{asambleaToDelete?.title}" y todos
+              sus registros asociados. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteAsamblea}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Eliminando...
+                </>
+              ) : (
+                "Eliminar"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

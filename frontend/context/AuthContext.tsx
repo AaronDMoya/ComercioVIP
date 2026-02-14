@@ -21,12 +21,15 @@ const AuthContext = createContext<AuthContextType>(null!);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Estado que almacena el usuario actual (null si no está autenticado)
     const [user, setUser] = useState<User | null>(null);
+    // Estado para saber si está cargando/verificando la autenticación
+    const [isLoading, setIsLoading] = useState(true);
 
     /**
      * Función que carga la información del usuario actual desde el servidor
      * Hace una petición GET a /auth/me para verificar si hay una sesión activa
      */
     async function loadUser() {
+        setIsLoading(true);
         try {
             const response = await apiFetch("/auth/me");
             if (response.ok) {
@@ -36,13 +39,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 // Si la sesión ha expirado, limpiar el estado del usuario
                 // El evento de sesión expirada se manejará en el useEffect
                 setUser(null);
+            } else {
+                // Si la respuesta no es ok y no es 401, el usuario permanece null (no autenticado)
+                setUser(null);
             }
-            // Si la respuesta no es ok y no es 401, el usuario permanece null (no autenticado)
         } catch (error) {
             // Silenciosamente falla si no hay conexión o el usuario no está autenticado
             // Esto es normal cuando el usuario no ha iniciado sesión
             console.debug("No se pudo cargar el usuario:", error);
             setUser(null);
+        } finally {
+            setIsLoading(false);
         }
     }
 
@@ -149,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Proporciona el contexto a todos los componentes hijos
     return (
-        <AuthContext.Provider value={{ user, login, logout }}>
+        <AuthContext.Provider value={{ user, login, logout, isLoading }}>
             {children}
         </AuthContext.Provider>
     );

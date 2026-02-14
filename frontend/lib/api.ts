@@ -21,8 +21,10 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
         throw new Error("NEXT_PUBLIC_API_URL no está configurado. Por favor, configura la variable de entorno.");
     }
 
+    const fullUrl = `${API_URL}${endpoint}`;
+
     try {
-        const res = await fetch(`${API_URL}${endpoint}`, {
+        const res = await fetch(fullUrl, {
             // credentials: "include" permite enviar cookies automáticamente
             // Esto es necesario para mantener la sesión del usuario
             credentials: "include",
@@ -47,7 +49,23 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
         return res;
     } catch (error) {
         // Mejorar el mensaje de error para debugging
-        console.error(`Error al hacer fetch a ${API_URL}${endpoint}:`, error);
+        const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+        
+        // Verificar si es un error de conexión
+        if (errorMessage.includes("Failed to fetch") || errorMessage.includes("NetworkError")) {
+            console.error(`❌ Error de conexión al intentar acceder a: ${fullUrl}`);
+            console.error(`🔍 Verifica que:`);
+            console.error(`   1. El backend esté corriendo en ${API_URL}`);
+            console.error(`   2. La URL sea correcta (actual: ${API_URL})`);
+            console.error(`   3. No haya problemas de CORS`);
+            console.error(`   4. El endpoint exista: ${endpoint}`);
+            
+            throw new Error(
+                `No se pudo conectar con el servidor. Verifica que el backend esté corriendo en ${API_URL}`
+            );
+        }
+        
+        console.error(`Error al hacer fetch a ${fullUrl}:`, error);
         throw error;
     }
 }

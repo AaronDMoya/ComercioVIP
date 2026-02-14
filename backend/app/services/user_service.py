@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from app.schemas.user_schema import UserCreate, UserResponse, UserUpdate
-from app.repositories.user_repository import get_by_username, create_user, get_all_users, count_users, get_by_id, update_user
+from app.repositories.user_repository import get_by_username, create_user, get_all_users, count_users, get_by_id, update_user, delete_user
 from app.core.security import hash_password, verify_password
 from app.models.user_model import User
 from app.schemas.user_schema import UserLogin
@@ -84,3 +84,15 @@ def update_existing_user(db: Session, user_id, data_user: UserUpdate):
         user_data["password"] = hash_password(data_user.new_password)
     
     return update_user(db, user_id, user_data)
+
+# Servicio para eliminar un usuario
+def delete_existing_user(db: Session, user_id):
+    # Verificar si el usuario existe
+    user = get_by_id(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    return delete_user(db, user_id)

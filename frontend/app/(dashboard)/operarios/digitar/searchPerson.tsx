@@ -79,16 +79,16 @@ export default function SearchPerson() {
   };
 
   return (
-    <Container className="px-6 h-full flex flex-col min-h-0 w-120 gap-0">
+    <Container className="px-3 md:px-6 h-full flex flex-col min-h-0 w-full lg:w-96 gap-0">
       {/* Sección de búsqueda */}
       <div className="flex-shrink-0 border-b pb-2">
         <div className="flex items-center gap-2 border-b pb-2 mb-3">
           <Search className="w-4 h-4 text-blue-500" />
-          <h3 className="text-base font-semibold">Búsqueda</h3>
+          <h3 className="text-sm md:text-base font-semibold">Búsqueda</h3>
         </div>
 
-        <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
+        <div className="flex flex-col gap-2 md:gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs md:text-sm text-gray-600">
             <div>
               <FieldLabel>Torre/Bloque:</FieldLabel>
               <InputGroup>
@@ -135,9 +135,9 @@ export default function SearchPerson() {
 
       {/* Sección de resultados */}
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className="flex-shrink-0 flex items-center justify-between border-b p-2 mb-4">
-          <h3 className="text-lg font-semibold">Resultados</h3>
-          <p className="font-semibold bg-gray-100 p-1 rounded-lg text-sm">
+        <div className="flex-shrink-0 flex items-center justify-between border-b p-2 mb-2 md:mb-4">
+          <h3 className="text-sm md:text-lg font-semibold">Resultados</h3>
+          <p className="font-semibold bg-gray-100 p-1 rounded-lg text-xs md:text-sm">
             {resultados.length} encontrados
           </p>
         </div>

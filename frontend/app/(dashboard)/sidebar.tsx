@@ -92,7 +92,7 @@ export default function AppSidebar() {
         <div className="p-2 flex items-center gap-2 mb-4 animate-fade-in-down hover-lift transition-smooth">
           <Scale className="w-10 h-10 text-white bg-blue-600 p-2 rounded-lg transition-transform duration-300 hover:rotate-12" />
           <div>
-            <h1 className="text-sm font-semibold text-gray-900">Sistema de Registro</h1>
+            <h1 className="text-sm font-semibold text-gray-900">Sistema Asamblea PRO</h1>
             <p className="text-xs text-gray-500">v1.0.0</p>
           </div>
         </div>

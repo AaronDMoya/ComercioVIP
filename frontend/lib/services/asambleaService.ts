@@ -81,6 +81,16 @@ export async function getAsambleas(params: GetAsambleasParams = {}): Promise<Asa
     throw new Error(errorMessage);
   } catch (error) {
     console.error("Error al obtener asambleas:", error);
+    
+    // Si es un error de conexión, proporcionar un mensaje más útil
+    if (error instanceof Error && (error.message.includes("Failed to fetch") || error.message.includes("No se pudo conectar"))) {
+      const connectionError = new Error(
+        "No se pudo conectar con el servidor. Verifica que el backend esté corriendo."
+      );
+      connectionError.name = "ConnectionError";
+      throw connectionError;
+    }
+    
     throw error;
   }
 }

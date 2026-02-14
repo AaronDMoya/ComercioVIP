@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, Query, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
 from app.core.database import get_db
+from app.core.auth import require_admin
 from app.schemas.user_schema import UserCreate, UserResponse, UserUpdate
-from app.services.user_service import create_new_user, get_users, update_existing_user
+from app.services.user_service import create_new_user, get_users, update_existing_user, delete_existing_user
 from uuid import UUID
 from typing import Optional
 
@@ -81,4 +82,23 @@ def update_user(user_id: UUID, data_user: UserUpdate, db: Session = Depends(get_
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while updating user: {str(e)}"
+        )
+
+# Endpoint para eliminar un usuario
+@router.delete("/{user_id}")
+def delete_user_endpoint(user_id: UUID, db: Session = Depends(get_db), current_user: dict = Depends(require_admin)):
+    try:
+        delete_existing_user(db, user_id)
+        return {"message": "User deleted successfully"}
+    except OperationalError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database connection error. Please try again later."
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while deleting user: {str(e)}"
         )

@@ -20,7 +20,7 @@ export default function LoginPage() {
                 <h1
                 className="text-1xl font-semibold"
                 >
-                    Sistema de Registro
+                    Sistema Asamblea PRO
                 </h1>
             </div>
             <LoginForm/>

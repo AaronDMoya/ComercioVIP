@@ -131,10 +131,10 @@ export function DataTable<T extends { id?: string | number }>({
   const skeletonRenderer = renderSkeletonRow || defaultRenderSkeletonRow;
 
   return (
-    <Container className="flex-1 p-4 flex flex-col text-gray-500 gap-2 min-h-0 overflow-hidden">
+    <Container className="flex-1 p-3 md:p-4 flex flex-col text-gray-500 gap-2 min-h-0 overflow-hidden">
       {/* Estructura de tabla siempre presente para mantener el tamaño */}
-      <div className="flex-1 overflow-hidden">
-        <Table className="w-full">
+      <div className="flex-1 overflow-hidden overflow-x-auto">
+        <Table className="w-full min-w-[600px]">
           <TableHeader>
             <TableRow>
               {columns.map((column) => (

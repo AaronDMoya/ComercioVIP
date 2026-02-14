@@ -12,16 +12,25 @@ import { useAuth } from "@/context/AuthContext";
 export default function LoginForm() {
     // router para navegar entre las rutas
     const router = useRouter();
-    const { login, user } = useAuth();
+    const { login, user, isLoading: authLoading } = useAuth();
     
     // Estados para los campos del formulario
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
+
+    // Marcar como montado después de la hidratación
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     // Redirigir si el usuario ya está autenticado
+    // Solo hacerlo después de que termine de verificar la autenticación
     useEffect(() => {
+        if (!isMounted || authLoading) return;
+        
         if (user) {
             if (user.is_admin) {
                 router.push("/administrador/gestion-asambleas");
@@ -29,7 +38,7 @@ export default function LoginForm() {
                 router.push("/operarios/panel");
             }
         }
-    }, [user, router]);
+    }, [user, authLoading, router, isMounted]);
 
     // función para manejar el submit del formulario
     const handleSubmit = async (e: React.FormEvent) => {

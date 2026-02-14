@@ -27,6 +27,7 @@ export type LoginResult = {
  */
 export type AuthContextType = {
     user: User | null;  // Usuario actual (null si no está autenticado)
+    isLoading: boolean; // Indica si está verificando la autenticación
     login: (username: string, password: string) => Promise<LoginResult>;  // Función para iniciar sesión
     logout: () => Promise<void>;  // Función para cerrar sesión
 };

@@ -8,24 +8,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
-import { Download, FileSpreadsheet, Trash2, Loader2 } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Download, FileSpreadsheet, Loader2, Search, Send } from "lucide-react";
 import { toast } from "sonner";
-import { getAsamblea, updateAsambleaEstado, deleteAsamblea, type Asamblea } from "@/lib/services/asambleaService";
+import { getAsamblea, updateAsambleaEstado, type Asamblea } from "@/lib/services/asambleaService";
 import { getRegistros, type Registro } from "@/lib/services/registroService";
 import * as XLSX from "xlsx";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface AsambleaDetailsDialogProps {
   asambleaId: string | null;
@@ -44,8 +38,10 @@ export function AsambleaDetailsDialog({
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Estados para la pestaña de Reportar Control
+  const [searchControl, setSearchControl] = useState("");
+  const [selectedRegistros, setSelectedRegistros] = useState<Set<string>>(new Set());
 
   // Cargar datos de la asamblea cuando se abre el dialog
   useEffect(() => {
@@ -158,26 +154,6 @@ export function AsambleaDetailsDialog({
     return "";
   };
 
-  // Manejar eliminación
-  const handleDelete = async () => {
-    if (!asamblea) return;
-
-    setIsDeleting(true);
-    try {
-      await deleteAsamblea(asamblea.id);
-      toast.success("Asamblea eliminada exitosamente");
-      setShowDeleteConfirm(false);
-      onOpenChange(false);
-      if (onAsambleaUpdated) {
-        onAsambleaUpdated();
-      }
-    } catch (error: any) {
-      console.error("Error al eliminar asamblea:", error);
-      toast.error(error.message || "Error al eliminar la asamblea");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   // Función auxiliar para obtener el coeficiente de un control específico
   const obtenerCoeficienteControl = (
@@ -502,6 +478,183 @@ export function AsambleaDetailsDialog({
     }
   };
 
+  // Función para obtener registros con controles
+  const getRegistrosConControl = () => {
+    return registros.filter((r) => {
+      if (r.numero_control) return true;
+      if (r.gestion_poderes && typeof r.gestion_poderes === "object") {
+        const poderes = r.gestion_poderes;
+        for (const poderKey in poderes) {
+          const poder = poderes[poderKey];
+          if (poder && typeof poder === "object" && poder.numero_control) {
+            return true;
+          }
+        }
+      }
+      return false;
+    });
+  };
+
+  // Función para obtener el número de control de un registro
+  const getNumeroControl = (registro: Registro): string => {
+    if (registro.numero_control) return registro.numero_control;
+    if (registro.gestion_poderes && typeof registro.gestion_poderes === "object") {
+      const poderes = registro.gestion_poderes;
+      for (const poderKey in poderes) {
+        const poder = poderes[poderKey];
+        if (poder && typeof poder === "object" && poder.numero_control) {
+          return poder.numero_control;
+        }
+      }
+    }
+    return "";
+  };
+
+
+  // Manejar selección de registros
+  const handleToggleRegistro = (registroId: string) => {
+    const newSelected = new Set(selectedRegistros);
+    if (newSelected.has(registroId)) {
+      newSelected.delete(registroId);
+    } else {
+      newSelected.add(registroId);
+    }
+    setSelectedRegistros(newSelected);
+  };
+
+  // Manejar selección de todos
+  const handleSelectAll = (checked: boolean) => {
+    const registrosConControl = getRegistrosConControl();
+    const registrosFiltrados = registrosConControl.filter((r) => {
+      if (!searchControl.trim()) return true;
+      const control = getNumeroControl(r);
+      return control.toLowerCase().includes(searchControl.toLowerCase());
+    });
+
+    if (checked) {
+      setSelectedRegistros(new Set(registrosFiltrados.map((r) => r.id)));
+    } else {
+      setSelectedRegistros(new Set());
+    }
+  };
+
+  // Manejar envío de reporte
+  const handleEnviarReporte = () => {
+    if (selectedRegistros.size === 0) {
+      toast.error("Debes seleccionar al menos un registro");
+      return;
+    }
+    toast.info("Funcionalidad en desarrollo");
+  };
+
+  // Renderizar pestaña de Reportar Control
+  const renderReportarControlTab = () => {
+    // Verificar que la asamblea esté finalizada
+    if (!asamblea || asamblea.estado !== "CERRADA") {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          <p className="text-lg font-medium mb-2">Asamblea no finalizada</p>
+          <p className="text-sm">
+            Esta funcionalidad solo está disponible cuando la asamblea esté finalizada.
+          </p>
+        </div>
+      );
+    }
+
+    const registrosConControl = getRegistrosConControl();
+
+    // Filtrar registros por búsqueda de control
+    const registrosFiltrados = registrosConControl.filter((r) => {
+      if (!searchControl.trim()) return true;
+      const control = getNumeroControl(r);
+      return control.toLowerCase().includes(searchControl.toLowerCase());
+    });
+
+    if (registrosConControl.length === 0) {
+      return (
+        <div className="text-center py-12 text-gray-500">
+          No hay registros con controles asignados
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-semibold text-gray-900">
+            Reportar Control
+          </h3>
+          <Button
+            onClick={handleEnviarReporte}
+            disabled={selectedRegistros.size === 0}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            Enviar Reporte ({selectedRegistros.size})
+          </Button>
+        </div>
+
+        {/* Búsqueda */}
+        <div className="w-full">
+          <InputGroup>
+            <InputGroupInput
+              placeholder="Buscar por número de control"
+              value={searchControl}
+              onChange={(e) => setSearchControl(e.target.value)}
+            />
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
+        </div>
+
+        {/* Tabla */}
+        <div className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={selectedRegistros.size === registrosFiltrados.length && registrosFiltrados.length > 0}
+                    onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                  />
+                </TableHead>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Cédula</TableHead>
+                <TableHead>N° Control</TableHead>
+                <TableHead>Coeficiente</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {registrosFiltrados.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                    No se encontraron registros con el control buscado
+                  </TableCell>
+                </TableRow>
+              ) : (
+                registrosFiltrados.map((registro) => (
+                  <TableRow key={registro.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedRegistros.has(registro.id)}
+                        onCheckedChange={() => handleToggleRegistro(registro.id)}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">{registro.nombre}</TableCell>
+                    <TableCell>{registro.cedula}</TableCell>
+                    <TableCell>{getNumeroControl(registro)}</TableCell>
+                    <TableCell>{registro.coeficiente || "N/A"}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    );
+  };
+
   const siguienteEstado = asamblea ? getSiguienteEstado(asamblea.estado) : null;
 
   return (
@@ -522,66 +675,82 @@ export function AsambleaDetailsDialog({
               <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
             </div>
           ) : asamblea ? (
-            <div className="space-y-8">
-              {/* Información General */}
-              <div className="space-y-6">
-                <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
-                  Información General
-                </h3>
-                
-                {/* Título */}
-                <div className="space-y-1">
-                  <p className="text-2xl font-bold text-gray-900">{asamblea.title}</p>
-                </div>
+            <Tabs defaultValue="informacion" className="w-full">
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="informacion">Información</TabsTrigger>
+                <TabsTrigger value="estado">Estado</TabsTrigger>
+                <TabsTrigger value="estadisticas">Estadísticas</TabsTrigger>
+                <TabsTrigger value="exportar">Exportar</TabsTrigger>
+                <TabsTrigger 
+                  value="reportar" 
+                  disabled={asamblea.estado !== "CERRADA"}
+                  className={asamblea.estado !== "CERRADA" ? "opacity-50 cursor-not-allowed" : ""}
+                >
+                  Reportar Control
+                </TabsTrigger>
+              </TabsList>
 
-                {/* Descripción */}
-                <div className="space-y-1">
-                  <p className="text-base text-gray-700">
-                    {asamblea.description || "Sin descripción"}
-                  </p>
-                </div>
-
-                {/* Detalles en horizontal */}
-                <div className="flex flex-wrap gap-6 pt-4 border-t">
-                  <div className="space-y-1">
-                    <FieldLabel className="text-sm font-medium text-gray-500">Estado</FieldLabel>
-                    <div className="mt-1">
-                      <span className={getEstadoClasses(asamblea.estado)}>
-                        {getEstadoLabel(asamblea.estado)}
-                      </span>
+              {/* Pestaña: Información */}
+              <TabsContent value="informacion" className="space-y-4 mt-6">
+                <div className="space-y-4 p-6 bg-gray-50 rounded-lg border border-gray-200">
+                  <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
+                    Información General
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    {/* Título */}
+                    <div>
+                      <p className="text-2xl font-bold text-gray-900">{asamblea.title}</p>
                     </div>
-                  </div>
-                  <div className="space-y-1">
-                    <FieldLabel className="text-sm font-medium text-gray-500">Creada por</FieldLabel>
-                    <p className="text-base text-gray-900">{asamblea.created_by}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <FieldLabel className="text-sm font-medium text-gray-500">Fecha de Creación</FieldLabel>
-                    <p className="text-base text-gray-900">
-                      {formatDate(asamblea.created_at)}
-                    </p>
-                  </div>
-                  {asamblea.fecha_final && (
-                    <div className="space-y-1">
-                      <FieldLabel className="text-sm font-medium text-gray-500">Fecha Final</FieldLabel>
-                      <p className="text-base text-gray-900">
-                        {formatDate(asamblea.fecha_final)}
+
+                    {/* Descripción */}
+                    <div>
+                      <p className="text-base text-gray-700">
+                        {asamblea.description || "Sin descripción"}
                       </p>
                     </div>
-                  )}
+
+                    {/* Detalles en horizontal */}
+                    <div className="flex flex-wrap gap-6 pt-2">
+                      <div className="space-y-1">
+                        <FieldLabel className="text-sm font-medium text-gray-500">Estado</FieldLabel>
+                        <div className="mt-1">
+                          <span className={getEstadoClasses(asamblea.estado)}>
+                            {getEstadoLabel(asamblea.estado)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <FieldLabel className="text-sm font-medium text-gray-500">Creada por</FieldLabel>
+                        <p className="text-base text-gray-900">{asamblea.created_by}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <FieldLabel className="text-sm font-medium text-gray-500">Fecha de Creación</FieldLabel>
+                        <p className="text-base text-gray-900">
+                          {formatDate(asamblea.created_at)}
+                        </p>
+                      </div>
+                      {asamblea.fecha_final && (
+                        <div className="space-y-1">
+                          <FieldLabel className="text-sm font-medium text-gray-500">Fecha Final</FieldLabel>
+                          <p className="text-base text-gray-900">
+                            {formatDate(asamblea.fecha_final)}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </TabsContent>
 
-              <Separator />
-
-              {/* Cambiar Estado */}
-              {siguienteEstado && (
-                <>
+              {/* Pestaña: Estado */}
+              <TabsContent value="estado" className="space-y-4 mt-6">
+                {siguienteEstado ? (
                   <div className="space-y-4">
                     <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
                       Cambiar Estado
                     </h3>
-                    <div className="flex items-center justify-center">
+                    <div className="flex items-center justify-center py-8">
                       <Button
                         onClick={handleEstadoChange}
                         disabled={isUpdating}
@@ -599,91 +768,120 @@ export function AsambleaDetailsDialog({
                       </Button>
                     </div>
                   </div>
-                  <Separator />
-                </>
-              )}
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    Esta asamblea no puede cambiar de estado
+                  </div>
+                )}
+              </TabsContent>
 
-              {/* Estadísticas */}
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
-                  Estadísticas
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200">
-                    <p className="text-sm font-medium text-blue-600 mb-2">Total de Registros</p>
-                    <p className="text-3xl font-bold text-blue-900">{registros.length}</p>
-                  </div>
-                  <div className="p-6 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border border-green-200">
-                    <p className="text-sm font-medium text-green-600 mb-2">Registros con Coeficiente</p>
-                    <p className="text-3xl font-bold text-green-900">
-                      {registros.filter((r) => r.coeficiente !== null).length}
-                    </p>
-                  </div>
-                  <div className="p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200">
-                    <p className="text-sm font-medium text-purple-600 mb-2">Total Coeficiente</p>
-                    <p className="text-3xl font-bold text-purple-900">
-                      {registros
-                        .reduce((sum, r) => sum + (r.coeficiente || 0), 0)
-                        .toFixed(2)}
-                    </p>
+              {/* Pestaña: Estadísticas */}
+              <TabsContent value="estadisticas" className="space-y-4 mt-6">
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
+                    Estadísticas
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-6 bg-white rounded-lg border border-gray-200">
+                      <p className="text-sm font-medium text-gray-600 mb-2">Total de Registros</p>
+                      <p className="text-3xl font-bold text-gray-900">{registros.length}</p>
+                    </div>
+                    <div className="p-6 bg-white rounded-lg border border-gray-200">
+                      <p className="text-sm font-medium text-gray-600 mb-2">Registros con Coeficiente</p>
+                      <p className="text-3xl font-bold text-gray-900">
+                        {registros.filter((r) => r.coeficiente !== null).length}
+                      </p>
+                    </div>
+                    <div className="p-6 bg-white rounded-lg border border-gray-200">
+                      <p className="text-sm font-medium text-gray-600 mb-2">Total Coeficiente</p>
+                      <p className="text-3xl font-bold text-gray-900">
+                        {registros
+                          .reduce((sum, r) => sum + (r.coeficiente || 0), 0)
+                          .toFixed(2)}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </TabsContent>
 
-              <Separator />
+              {/* Pestaña: Exportar */}
+              <TabsContent value="exportar" className="space-y-4 mt-6">
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
+                    Exportar Datos
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Card CSV */}
+                    <div className="p-6 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
+                      <div className="flex flex-col gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className="p-3 bg-blue-50 rounded-lg">
+                            <Download className="w-6 h-6 text-blue-600" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-lg font-semibold text-gray-900">Exportar CSV</h4>
+                            <p className="text-sm text-gray-500">Exportación para sistema de controles</p>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={handleExportCSV}
+                          variant="outline"
+                          className="w-full"
+                          disabled={registros.length === 0}
+                        >
+                          Descargar CSV
+                        </Button>
+                      </div>
+                    </div>
 
-              {/* Exportar */}
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
-                  Exportar Datos
-                </h3>
-                <div className="flex gap-4">
-                  <Button
-                    onClick={handleExportCSV}
-                    variant="outline"
-                    className="flex items-center gap-2 px-6 py-3"
-                    disabled={registros.length === 0}
-                  >
-                    <Download className="w-5 h-5" />
-                    Exportar CSV
-                  </Button>
-                  <Button
-                    onClick={handleExportXLSX}
-                    variant="outline"
-                    className="flex items-center gap-2 px-6 py-3"
-                    disabled={registros.length === 0}
-                  >
-                    <FileSpreadsheet className="w-5 h-5" />
-                    Exportar XLSX
-                  </Button>
+                    {/* Card XLSX */}
+                    <div className={`p-6 rounded-lg border transition-colors ${
+                      asamblea.estado === "CERRADA" 
+                        ? "bg-white border-gray-200 hover:border-green-300" 
+                        : "bg-gray-50 border-gray-200 opacity-60"
+                    }`}>
+                      <div className="flex flex-col gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-3 rounded-lg ${
+                            asamblea.estado === "CERRADA" 
+                              ? "bg-green-50" 
+                              : "bg-gray-100"
+                          }`}>
+                            <FileSpreadsheet className={`w-6 h-6 ${
+                              asamblea.estado === "CERRADA" 
+                                ? "text-green-600" 
+                                : "text-gray-400"
+                            }`} />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-lg font-semibold text-gray-900">Exportar XLSX</h4>
+                            <p className="text-sm text-gray-500">Reporte final</p>
+                            {asamblea.estado !== "CERRADA" && (
+                              <p className="text-xs text-amber-600 mt-1">
+                                Solo disponible cuando la asamblea esté finalizada
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          onClick={handleExportXLSX}
+                          variant="outline"
+                          className="w-full"
+                          disabled={registros.length === 0 || asamblea.estado !== "CERRADA"}
+                        >
+                          Descargar XLSX
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </TabsContent>
 
-              <Separator />
-
-              {/* Eliminar */}
-              <div className="space-y-4">
-                <h3 className="text-xl font-semibold text-red-600 border-b border-red-200 pb-2">
-                  Zona de Peligro
-                </h3>
-                <div className="p-6 bg-red-50 border-2 border-red-200 rounded-xl">
-                  <p className="text-sm text-red-800 mb-6">
-                    Al eliminar esta asamblea, se eliminarán permanentemente todos los registros
-                    asociados. Esta acción no se puede deshacer.
-                  </p>
-                  <Button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    variant="destructive"
-                    className="flex items-center gap-2 w-full py-6 text-base font-medium"
-                    disabled={isDeleting}
-                    size="lg"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                    {isDeleting ? "Eliminando..." : "Eliminar Asamblea"}
-                  </Button>
-                </div>
-              </div>
-            </div>
+              {/* Pestaña: Reportar Control */}
+              <TabsContent value="reportar" className="space-y-4 mt-6">
+                {renderReportarControlTab()}
+              </TabsContent>
+            </Tabs>
           ) : (
             <div className="text-center py-8 text-gray-500">
               No se pudo cargar la información de la asamblea
@@ -691,36 +889,6 @@ export function AsambleaDetailsDialog({
           )}
         </DialogContent>
       </Dialog>
-
-      {/* Dialog de confirmación de eliminación */}
-      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Estás seguro de eliminar esta asamblea?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción eliminará permanentemente la asamblea "{asamblea?.title}" y todos
-              sus {registros.length} registros asociados. Esta acción no se puede deshacer.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Eliminando...
-                </>
-              ) : (
-                "Eliminar"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

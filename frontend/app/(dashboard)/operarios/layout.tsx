@@ -4,9 +4,12 @@ import { AsambleaProvider } from "@/context/AsambleaContext";
 import AsambleaSelector from "./components/AsambleaSelector";
 import { useAsamblea } from "@/context/AsambleaContext";
 import { AlertCircle } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 function OperariosContent({ children }: { children: React.ReactNode }) {
   const { asambleaSeleccionada, asambleasActivas, isLoading } = useAsamblea();
+  const pathname = usePathname();
+  const isVistaPage = pathname?.includes("/vista");
 
   // Si está cargando, mostrar un mensaje de carga
   if (isLoading) {
@@ -61,6 +64,11 @@ function OperariosContent({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
+  }
+
+  // Si es la página de vista, mostrar solo el contenido sin selector
+  if (isVistaPage) {
+    return <>{children}</>;
   }
 
   // Si hay asamblea seleccionada, mostrar el selector y el contenido

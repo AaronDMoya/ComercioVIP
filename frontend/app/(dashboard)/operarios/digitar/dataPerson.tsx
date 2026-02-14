@@ -1070,15 +1070,15 @@ export default function DataPerson() {
   }
 
   return (
-    <Container className="px-6 h-full flex flex-col min-h-0">
+    <Container className="px-3 md:px-6 h-full flex flex-col min-h-0">
       {/* Información básica */}
-      <div className="flex-shrink-0 flex gap-4 border-b pb-4">
-                <User className="w-12 h-12 text-gray-500 bg-gray-200 p-2 rounded-full flex-shrink-0" />
+      <div className="flex-shrink-0 flex flex-col sm:flex-row gap-3 md:gap-4 border-b pb-3 md:pb-4">
+                <User className="w-10 h-10 md:w-12 md:h-12 text-gray-500 bg-gray-200 p-2 rounded-full flex-shrink-0" />
 
-                <div className="flex-1 flex justify-between">
-                    <div className="flex flex-col justify-between">
-            <h1 className="text-lg font-semibold text-gray-900">{registroSeleccionado.nombre}</h1>
-                        <div className="flex flex-wrap gap-4 mt-1 text-sm text-gray-500">
+                <div className="flex-1 flex flex-col sm:flex-row sm:justify-between gap-3 md:gap-4">
+                    <div className="flex flex-col justify-between flex-1 min-w-0">
+            <h1 className="text-base md:text-lg font-semibold text-gray-900 truncate">{registroSeleccionado.nombre}</h1>
+                        <div className="flex flex-wrap gap-2 md:gap-4 mt-1 text-xs md:text-sm text-gray-500">
               {registroSeleccionado.numero_torre && (
                 <p>Torre/Bloque: {registroSeleccionado.numero_torre}</p>
               )}
@@ -1091,10 +1091,10 @@ export default function DataPerson() {
                         </div>
                     </div>
                     
-                    <div className="flex items-center gap-6 text-sm">
+                    <div className="flex items-center gap-4 md:gap-6 text-xs md:text-sm">
                         <div className="flex flex-col items-center">
-                        <p className="text-sm text-gray-500">N° Control</p>
-              <span className="font-semibold text-blue-600 text-xl">
+                        <p className="text-xs md:text-sm text-gray-500">N° Control</p>
+              <span className="font-semibold text-blue-600 text-lg md:text-xl">
                 {registroSeleccionado.numero_control || "--"}
               </span>
                         </div>
@@ -1102,8 +1102,8 @@ export default function DataPerson() {
                         <div className="h-6 border-l border-gray-300" />
 
                         <div className="flex flex-col items-center">
-              <p className="text-sm text-gray-500">Coeficiente Total</p>
-              <span className="font-semibold text-green-600 text-xl">
+              <p className="text-xs md:text-sm text-gray-500">Coeficiente Total</p>
+              <span className="font-semibold text-green-600 text-lg md:text-xl">
                 {coeficienteTotal !== null && typeof coeficienteTotal === 'number' 
                   ? coeficienteTotal.toFixed(2) 
                   : (typeof registroSeleccionado.coeficiente === 'number' 
@@ -1116,23 +1116,23 @@ export default function DataPerson() {
                 </div>
 
       {/* Sección inferior: Gestión de Poderes y Actividad de Ingresos */}
-      <div className="flex-1 min-h-0 flex gap-6 mt-6 overflow-hidden">
+      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 md:gap-6 mt-4 md:mt-6 overflow-hidden">
         {/* Gestión de Poderes - Izquierda */}
-        <div className="w-full md:w-1/2 flex flex-col min-h-0">
-          <div className="flex-shrink-0 flex items-center gap-2 border-b pb-2 mb-4">
-                <Gavel className="w-5 h-5 text-orange-500" />
-            <h3 className="text-lg font-semibold">Gestión de Poderes</h3>
+        <div className="w-full lg:w-1/2 flex flex-col min-h-0">
+          <div className="flex-shrink-0 flex items-center gap-2 border-b pb-2 mb-3 md:mb-4">
+                <Gavel className="w-4 h-4 md:w-5 md:h-5 text-orange-500" />
+            <h3 className="text-base md:text-lg font-semibold">Gestión de Poderes</h3>
           </div>
 
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto">
-                <Table className="w-full">
+                <div className="flex-1 overflow-y-auto overflow-x-auto">
+                <Table className="w-full min-w-[400px]">
                     <TableHeader>
                     <TableRow>
-                        <TableHead>Torre/Bloque</TableHead>
-                        <TableHead>Apto/Casa</TableHead>
-                    <TableHead>N° Control</TableHead>
-                    <TableHead className="w-12"></TableHead>
+                        <TableHead className="text-xs md:text-sm">Torre/Bloque</TableHead>
+                        <TableHead className="text-xs md:text-sm">Apto/Casa</TableHead>
+                    <TableHead className="text-xs md:text-sm">N° Control</TableHead>
+                    <TableHead className="w-12 text-xs md:text-sm"></TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1262,7 +1262,7 @@ export default function DataPerson() {
                   </div>
                 )}
 
-                <div className="flex flex-col md:flex-row gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <div className="flex-1 relative">
                     <Input 
                       placeholder="Torre/Bloque" 
@@ -1359,23 +1359,24 @@ export default function DataPerson() {
           </div>
         </div>
 
-        <Separator orientation="vertical" className="h-full" />
+        <Separator orientation="horizontal" className="lg:hidden w-full" />
+        <Separator orientation="vertical" className="hidden lg:block h-full" />
 
         {/* Actividad de Ingresos - Derecha */}
-        <div className="w-full md:w-1/2 flex flex-col min-h-0">
-          <div className="flex-shrink-0 flex items-center gap-2 border-b pb-2 mb-4">
-                <Timer className="w-5 h-5 text-blue-500" />
-            <h3 className="text-lg font-semibold">Actividad de Ingresos</h3>
+        <div className="w-full lg:w-1/2 flex flex-col min-h-0">
+          <div className="flex-shrink-0 flex items-center gap-2 border-b pb-2 mb-3 md:mb-4">
+                <Timer className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
+            <h3 className="text-base md:text-lg font-semibold">Actividad de Ingresos</h3>
           </div>
 
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto overflow-x-auto">
               {actividades.length > 0 ? (
-                <Table className="w-full">
+                <Table className="w-full min-w-[300px]">
                     <TableHeader>
                     <TableRow>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Hora</TableHead>
+                      <TableHead className="text-xs md:text-sm">Tipo</TableHead>
+                      <TableHead className="text-xs md:text-sm">Hora</TableHead>
                     </TableRow>
                     </TableHeader>
                     <TableBody>

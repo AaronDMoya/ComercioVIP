@@ -8,7 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Eye } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -56,7 +56,7 @@ export default function AsambleaSelector() {
   // Mostrar el selector de asamblea
   return (
     <div className="p-4 bg-white border-b shadow-sm flex-shrink-0">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         <label htmlFor="asamblea-select" className="text-sm font-medium text-gray-700 whitespace-nowrap">
           Asamblea activa:
         </label>
@@ -79,11 +79,26 @@ export default function AsambleaSelector() {
           </SelectContent>
         </Select>
         {asambleaSeleccionada && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span className="px-2 py-1 bg-green-100 text-green-800 rounded-md text-xs font-medium">
-              ACTIVA
-            </span>
-          </div>
+          <>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="px-2 py-1 bg-green-100 text-green-800 rounded-md text-xs font-medium">
+                ACTIVA
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="icon"
+              className="ml-auto flex-shrink-0"
+              onClick={() => {
+                if (asambleaSeleccionada) {
+                  window.open(`/operarios/vista?asamblea=${asambleaSeleccionada.id}`, '_blank');
+                }
+              }}
+              title="Ver en pantalla grande"
+            >
+              <Eye className="h-4 w-4" />
+            </Button>
+          </>
         )}
       </div>
     </div>

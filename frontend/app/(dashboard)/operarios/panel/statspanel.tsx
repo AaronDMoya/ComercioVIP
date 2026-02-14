@@ -194,24 +194,24 @@ export default function StatsPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [asambleaSeleccionada?.id]); // Re-ejecutar cuando cambie la asamblea seleccionada
   return (
-    <div className="w-full h-full flex flex-1 gap-6 overflow-hidden">
+    <div className="w-full h-full flex flex-col md:flex-row flex-1 gap-3 md:gap-6 overflow-y-auto md:overflow-hidden">
       {/* Columna izquierda: stats y chart */}
-      <div className="flex-1 flex flex-col gap-4 min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col gap-3 md:gap-4 min-h-0 overflow-y-auto md:overflow-hidden">
         {/* Cards de estadísticas */}
-        <div className="w-full flex gap-4">
+        <div className="w-full flex flex-col sm:flex-row gap-3 md:gap-4">
           {/* Card 1 – Quorum Presente */}
-          <Card className="w-72 bg-white rounded-xl flex-1">
-            <CardContent className="flex items-center justify-between gap-4">
-              <div className="flex flex-col justify-center">
-                <p className="text-sm text-gray-500">Quorum Presente</p>
+          <Card className="w-full sm:flex-1 bg-white rounded-xl">
+            <CardContent className="flex items-center justify-between gap-2 md:gap-4 p-4 md:p-6">
+              <div className="flex flex-col justify-center flex-1 min-w-0">
+                <p className="text-xs md:text-sm text-gray-500">Quorum Presente</p>
                 {isLoadingQuorum || !estadisticasQuorum ? (
                   <>
-                    <h2 className="text-2xl font-bold text-gray-900">-</h2>
-                    <p className="text-sm text-gray-400">Cargando...</p>
+                    <h2 className="text-xl md:text-2xl font-bold text-gray-900">-</h2>
+                    <p className="text-xs md:text-sm text-gray-400">Cargando...</p>
                   </>
                 ) : (
                   <>
-                    <h2 className="text-2xl font-bold text-gray-900">
+                    <h2 className="text-xl md:text-2xl font-bold text-gray-900">
                       {estadisticasQuorum.total_registros > 0
                         ? Math.round(
                             (estadisticasQuorum.registros_presentes /
@@ -221,14 +221,14 @@ export default function StatsPanel() {
                         : 0}
                       %
                     </h2>
-                    <p className="text-sm text-gray-400">
+                    <p className="text-xs md:text-sm text-gray-400">
                       {estadisticasQuorum.registros_presentes} de{" "}
                       {estadisticasQuorum.total_registros}
                     </p>
                   </>
                 )}
               </div>
-              <div className="w-24 h-24">
+              <div className="w-16 h-16 md:w-24 md:h-24 flex-shrink-0">
                 {isLoadingQuorum || !estadisticasQuorum ? (
                   <div className="w-full h-full flex items-center justify-center">
                     <p className="text-xs text-gray-400">...</p>
@@ -267,18 +267,18 @@ export default function StatsPanel() {
           </Card>
 
           {/* Card 2 – Coeficiente Presente */}
-          <Card className="w-72 bg-white rounded-xl flex-1">
-            <CardContent className="flex items-center justify-between gap-4">
-              <div className="flex flex-col justify-center">
-                <p className="text-sm text-gray-500">Coeficiente Presente</p>
+          <Card className="w-full sm:flex-1 bg-white rounded-xl">
+            <CardContent className="flex items-center justify-between gap-2 md:gap-4 p-4 md:p-6">
+              <div className="flex flex-col justify-center flex-1 min-w-0">
+                <p className="text-xs md:text-sm text-gray-500">Coeficiente Presente</p>
                 {isLoadingQuorum || !estadisticasQuorum ? (
                   <>
-                    <h2 className="text-2xl font-bold text-gray-900">-</h2>
-                    <p className="text-sm text-gray-400">Cargando...</p>
+                    <h2 className="text-xl md:text-2xl font-bold text-gray-900">-</h2>
+                    <p className="text-xs md:text-sm text-gray-400">Cargando...</p>
                   </>
                 ) : (
                   <>
-                    <h2 className="text-2xl font-bold text-gray-900">
+                    <h2 className="text-xl md:text-2xl font-bold text-gray-900">
                       {estadisticasQuorum.total_coeficiente > 0
                         ? Math.round(
                             (estadisticasQuorum.coeficiente_presente /
@@ -288,14 +288,14 @@ export default function StatsPanel() {
                         : 0}
                       %
                     </h2>
-                    <p className="text-sm text-gray-400">
+                    <p className="text-xs md:text-sm text-gray-400">
                       {estadisticasQuorum.coeficiente_presente.toFixed(2)} de{" "}
                       {estadisticasQuorum.total_coeficiente.toFixed(2)}
                     </p>
                   </>
                 )}
               </div>
-              <div className="w-24 h-24">
+              <div className="w-16 h-16 md:w-24 md:h-24 flex-shrink-0">
                 {isLoadingQuorum || !estadisticasQuorum ? (
                   <div className="w-full h-full flex items-center justify-center">
                     <p className="text-xs text-gray-400">...</p>
@@ -336,9 +336,9 @@ export default function StatsPanel() {
 
         {/* Container del Chart */}
         <Container className="w-full flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="flex flex-col gap-2 mb-4">
-            <h3 className="text-lg font-semibold text-card-foreground">Tendencia de ingreso</h3>
-            <p className="text-sm text-muted-foreground">Monitoreo de asistencia en tiempo real</p>
+          <div className="flex flex-col gap-1 md:gap-2 mb-2 md:mb-4">
+            <h3 className="text-base md:text-lg font-semibold text-card-foreground">Tendencia de ingreso</h3>
+            <p className="text-xs md:text-sm text-muted-foreground">Monitoreo de asistencia en tiempo real</p>
           </div>
 
           {/* Contenedor del chart que ocupa todo el alto restante */}
@@ -351,10 +351,16 @@ export default function StatsPanel() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={chartData}
-                  margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 40 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                  <XAxis dataKey="hora" />
+                  <XAxis 
+                    dataKey="hora" 
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                    tick={{ fontSize: 10 }}
+                  />
                   <Tooltip />
                   <Bar dataKey="personas" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 </BarChart>
