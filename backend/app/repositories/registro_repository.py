@@ -405,8 +405,13 @@ def get_estadisticas_quorum_coeficiente(db: Session, asamblea_id: UUID):
                 coeficiente_registro_presente += float(registro.coeficiente)
             
             # Sumar coeficientes de los poderes en gestion_poderes
+            # EXCLUIR poder_1 porque es el poder propio de la persona y ya se contó en el coeficiente propio
             if registro.gestion_poderes and isinstance(registro.gestion_poderes, dict):
                 for poder_key, poder_data in registro.gestion_poderes.items():
+                    # Saltar poder_1 porque es el poder propio de la persona
+                    if poder_key == "poder_1":
+                        continue
+                    
                     if isinstance(poder_data, dict):
                         # Obtener datos del poder
                         torre = poder_data.get("torre") or poder_data.get("numero_torre") or ""

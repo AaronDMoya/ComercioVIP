@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Download, FileSpreadsheet, Loader2, Search, Send } from "lucide-react";
 import { toast } from "sonner";
 import { getAsamblea, updateAsambleaEstado, type Asamblea } from "@/lib/services/asambleaService";
@@ -154,6 +155,25 @@ export function AsambleaDetailsDialog({
     return "";
   };
 
+  // Obtener la explicación del estado actual
+  const getEstadoExplicacion = (estado: string): string => {
+    const explicaciones: { [key: string]: string } = {
+      CREADA: "La asamblea ha sido creada pero aún no está activa. Los operarios no pueden registrar ingresos hasta que se active.",
+      ACTIVA: "La asamblea está en curso y los operarios pueden registrar ingresos, salidas y gestionar poderes de los asistentes.",
+      CERRADA: "La asamblea ha finalizado. Ya no se pueden registrar nuevas actividades y está disponible para exportar reportes finales.",
+    };
+    return explicaciones[estado] || "Estado desconocido";
+  };
+
+  // Obtener la explicación del siguiente estado
+  const getSiguienteEstadoExplicacion = (siguienteEstado: string | null): string => {
+    const explicaciones: { [key: string]: string } = {
+      ACTIVA: "Al activar la asamblea, los operarios podrán comenzar a registrar ingresos y gestionar la asistencia de los participantes.",
+      CERRADA: "Al finalizar la asamblea, se detendrán todos los registros de actividades y se habilitará la exportación de reportes finales.",
+    };
+    return siguienteEstado ? (explicaciones[siguienteEstado] || "Cambiar al siguiente estado") : "";
+  };
+
 
   // Función auxiliar para obtener el coeficiente de un control específico
   const obtenerCoeficienteControl = (
@@ -197,7 +217,7 @@ export function AsambleaDetailsDialog({
     return null;
   };
 
-  // Exportar a CSV para sistema de controles
+  // Exportar a XLS para sistema de controles
   const handleExportCSV = () => {
     if (registros.length === 0) {
       toast.error("No hay registros para exportar");
@@ -289,35 +309,41 @@ export function AsambleaDetailsDialog({
       return;
     }
 
-    // Crear headers
-    const headers = ["ID NO", "Name", "Group NO", "Weight"];
+    try {
+      // Crear datos para el Excel
+      const datos = registrosExportar.map((item) => ({
+        "ID NO": item.idNo,
+        "Name": item.name,
+        "Group NO": item.groupNo,
+        "Weight": item.weight,
+      }));
 
-    // Crear filas
-    const rows = registrosExportar.map((item) => [
-      item.idNo.toString(),
-      item.name,
-      item.groupNo,
-      item.weight.toString(),
-    ]);
+      // Crear workbook
+      const wb = XLSX.utils.book_new();
 
-    // Convertir a CSV
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
-    ].join("\n");
+      // Crear worksheet
+      const ws = XLSX.utils.json_to_sheet(datos);
 
-    // Crear blob y descargar
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${asamblea?.title || "asamblea"}_controles.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      // Ajustar ancho de columnas
+      const colWidths = [
+        { wch: 10 }, // ID NO
+        { wch: 30 }, // Name
+        { wch: 12 }, // Group NO
+        { wch: 12 }, // Weight
+      ];
+      ws["!cols"] = colWidths;
 
-    toast.success("Archivo CSV exportado exitosamente");
+      // Agregar worksheet al workbook
+      XLSX.utils.book_append_sheet(wb, ws, "Controles");
+
+      // Descargar archivo
+      XLSX.writeFile(wb, `${asamblea?.title || "asamblea"}_controles.xls`);
+
+      toast.success("Archivo XLS exportado exitosamente");
+    } catch (error) {
+      console.error("Error al exportar XLS:", error);
+      toast.error("Error al exportar el archivo XLS");
+    }
   };
 
   // Función para convertir hora a minutos desde medianoche
@@ -745,34 +771,65 @@ export function AsambleaDetailsDialog({
 
               {/* Pestaña: Estado */}
               <TabsContent value="estado" className="space-y-4 mt-6">
-                {siguienteEstado ? (
-                  <div className="space-y-4">
-                    <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
-                      Cambiar Estado
-                    </h3>
-                    <div className="flex items-center justify-center py-8">
-                      <Button
-                        onClick={handleEstadoChange}
-                        disabled={isUpdating}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-base font-medium"
-                        size="lg"
-                      >
-                        {isUpdating ? (
-                          <>
-                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                            Actualizando...
-                          </>
-                        ) : (
-                          getEstadoButtonText()
-                        )}
-                      </Button>
+                <div className="space-y-6">
+                  <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
+                    Estado de la Asamblea
+                  </h3>
+                  
+                  {/* Estado actual con explicación */}
+                  <div className="p-6 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <FieldLabel className="text-sm font-medium text-gray-700">Estado Actual:</FieldLabel>
+                        <span className={getEstadoClasses(asamblea.estado)}>
+                          {getEstadoLabel(asamblea.estado)}
+                        </span>
+                      </div>
+                      <div className="mt-3 p-4 bg-white rounded-md border border-gray-200">
+                        <p className="text-sm text-gray-700 leading-relaxed">
+                          {getEstadoExplicacion(asamblea.estado)}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    Esta asamblea no puede cambiar de estado
-                  </div>
-                )}
+
+                  {/* Botón para cambiar estado */}
+                  {siguienteEstado ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleEstadoChange}
+                            disabled={isUpdating}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-base font-medium"
+                            size="lg"
+                          >
+                            {isUpdating ? (
+                              <>
+                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                Actualizando...
+                              </>
+                            ) : (
+                              getEstadoButtonText()
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="text-sm leading-relaxed">
+                            {getSiguienteEstadoExplicacion(siguienteEstado)}
+                          </p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <p className="text-base font-medium mb-2">Esta asamblea no puede cambiar de estado</p>
+                      <p className="text-sm">
+                        La asamblea ha alcanzado su estado final y no se pueden realizar más cambios.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </TabsContent>
 
               {/* Pestaña: Estadísticas */}
@@ -811,7 +868,7 @@ export function AsambleaDetailsDialog({
                     Exportar Datos
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Card CSV */}
+                    {/* Card XLS */}
                     <div className="p-6 bg-white rounded-lg border border-gray-200 hover:border-blue-300 transition-colors">
                       <div className="flex flex-col gap-4">
                         <div className="flex items-center gap-3">
@@ -819,7 +876,7 @@ export function AsambleaDetailsDialog({
                             <Download className="w-6 h-6 text-blue-600" />
                           </div>
                           <div className="flex-1">
-                            <h4 className="text-lg font-semibold text-gray-900">Exportar CSV</h4>
+                            <h4 className="text-lg font-semibold text-gray-900">Exportar XLS</h4>
                             <p className="text-sm text-gray-500">Exportación para sistema de controles</p>
                           </div>
                         </div>
@@ -829,7 +886,7 @@ export function AsambleaDetailsDialog({
                           className="w-full"
                           disabled={registros.length === 0}
                         >
-                          Descargar CSV
+                          Descargar XLS
                         </Button>
                       </div>
                     </div>

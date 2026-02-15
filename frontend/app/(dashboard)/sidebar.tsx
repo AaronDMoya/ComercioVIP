@@ -147,10 +147,10 @@ export default function AppSidebar() {
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={() => setShowLogoutDialog(true)}
+                onClick={() => setShowLogoutDialog(true)}
             className="text-red-600 hover:bg-red-50 hover:text-red-700 transition-transform duration-200 hover:scale-110"
             title="Cerrar sesión"
-          >
+              >
             <LogOut className="w-4 h-4" />
           </Button>
         </div>

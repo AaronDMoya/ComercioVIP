@@ -99,13 +99,8 @@ export default function VistaPantalla() {
   const obtenerEstadisticas = async () => {
     const id = asamblea?.id;
     if (!id) {
-      const horas = generarHorasDelDia();
-      setChartData(
-        horas.map((hora) => ({
-          hora: convertirHoraA12H(hora),
-          personas: 0,
-        }))
-      );
+      // Si no hay asamblea, inicializar con datos vacíos
+      setChartData([]);
       setIsLoading(false);
       return;
     }
@@ -123,25 +118,25 @@ export default function VistaPantalla() {
       const estadisticas: Record<string, number> = await response.json();
       const horas = generarHorasDelDia();
 
-      const datos = horas.map((hora) => {
-        const conteo = estadisticas[hora] || 0;
-        return {
-          hora: convertirHoraA12H(hora),
-          personas: conteo,
-        };
-      });
+      // Crear datos del chart solo con las horas que tienen registros
+      const datos = horas
+        .map((hora) => {
+          const conteo = estadisticas[hora] || 0;
+          return {
+            hora: convertirHoraA12H(hora),
+            personas: conteo,
+            horaOriginal: hora, // Guardar hora original para ordenar
+          };
+        })
+        .filter((item) => item.personas > 0) // Solo incluir horas con registros
+        .map(({ horaOriginal, ...rest }) => rest); // Remover horaOriginal del resultado final
 
       setChartData(datos);
       setIsLoading(false);
     } catch (error) {
       console.error("Error al obtener estadísticas:", error);
-      const horas = generarHorasDelDia();
-      setChartData(
-        horas.map((hora) => ({
-          hora: convertirHoraA12H(hora),
-          personas: 0,
-        }))
-      );
+      // En caso de error, inicializar con datos vacíos (sin horas)
+      setChartData([]);
       setIsLoading(false);
     }
   };
@@ -415,7 +410,7 @@ export default function VistaPantalla() {
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={chartData}
-                      margin={{ top: 10, right: 20, left: 10, bottom: 50 }}
+                      margin={{ top: 10, right: 20, left: 0, bottom: 50 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
                       <XAxis 

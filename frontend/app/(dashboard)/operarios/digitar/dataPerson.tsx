@@ -1168,6 +1168,10 @@ export default function DataPerson() {
                                 autoFocus
                                 disabled={isLoading}
                               />
+                            ) : index === 0 ? (
+                              <div className="px-2 py-1 rounded min-h-[32px] flex items-center text-gray-500 cursor-not-allowed">
+                                {poder.numero_control || "--"}
+                              </div>
                             ) : (
                               <div
                                 onClick={() => {

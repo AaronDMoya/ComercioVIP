@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect, useState, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Container } from "@/components/ui/container";
 import { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip, CartesianGrid } from "recharts";
@@ -8,7 +9,6 @@ import "react-circular-progressbar/dist/styles.css";
 import { Bell } from "lucide-react";
 import type { Notification } from "@/types/notification";
 import { useAsamblea } from "@/context/AsambleaContext";
-import { useEffect, useState, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
 
 const notifications: Notification[] = [
@@ -55,13 +55,7 @@ export default function StatsPanel() {
     const asambleaId = asambleaSeleccionada?.id;
     if (!asambleaId) {
       // Si no hay asamblea seleccionada, inicializar con datos vacíos
-      const horas = generarHorasDelDia();
-      setChartData(
-        horas.map((hora) => ({
-          hora: convertirHoraA12H(hora),
-          personas: 0,
-        }))
-      );
+      setChartData([]);
       setIsLoading(false);
       return;
     }
@@ -103,27 +97,25 @@ export default function StatsPanel() {
       // Generar todas las horas del día
       const horas = generarHorasDelDia();
 
-      // Crear datos del chart con todas las horas
-      const datos = horas.map((hora) => {
-        const conteo = estadisticas[hora] || 0;
-        return {
-          hora: convertirHoraA12H(hora),
-          personas: conteo,
-        };
-      });
+      // Crear datos del chart solo con las horas que tienen registros
+      const datos = horas
+        .map((hora) => {
+          const conteo = estadisticas[hora] || 0;
+          return {
+            hora: convertirHoraA12H(hora),
+            personas: conteo,
+            horaOriginal: hora, // Guardar hora original para ordenar
+          };
+        })
+        .filter((item) => item.personas > 0) // Solo incluir horas con registros
+        .map(({ horaOriginal, ...rest }) => rest); // Remover horaOriginal del resultado final
 
       setChartData(datos);
       setIsLoading(false);
     } catch (error) {
       console.error("Error al obtener estadísticas:", error);
-      // En caso de error, inicializar con datos vacíos
-      const horas = generarHorasDelDia();
-      setChartData(
-        horas.map((hora) => ({
-          hora: convertirHoraA12H(hora),
-          personas: 0,
-        }))
-      );
+      // En caso de error, inicializar con datos vacíos (sin horas)
+      setChartData([]);
       setIsLoading(false);
     }
   }, [asambleaSeleccionada?.id]);
@@ -336,13 +328,15 @@ export default function StatsPanel() {
 
         {/* Container del Chart */}
         <Container className="w-full flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="flex flex-col gap-1 md:gap-2 mb-2 md:mb-4">
+          <div className="flex flex-col gap-1 md:gap-2 mb-2 md:mb-4 px-4 md:px-6">
             <h3 className="text-base md:text-lg font-semibold text-card-foreground">Tendencia de ingreso</h3>
-            <p className="text-xs md:text-sm text-muted-foreground">Monitoreo de asistencia en tiempo real</p>
+            <p className="text-xs md:text-sm text-muted-foreground">
+              Monitoreo de asistencia en tiempo real
+            </p>
           </div>
 
           {/* Contenedor del chart que ocupa todo el alto restante */}
-          <div className="flex-1 min-h-0 w-full">
+          <div className="flex-1 min-h-0 w-full px-4 md:px-6 pb-4 md:pb-6">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-gray-500">Cargando estadísticas...</p>
