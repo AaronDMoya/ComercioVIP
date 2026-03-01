@@ -29,22 +29,31 @@ def list_registros(
 ):
     try:
         registros = get_registros(db=db, asamblea_id=asamblea_id)
-        
+
         # Convertir los registros a RegistroResponse
         registros_response = [RegistroResponse.model_validate(registro) for registro in registros]
-        
+
         return registros_response
     except OperationalError as e:
+        err_msg = str(e).lower()
+        if "token_actualizacion" in err_msg or ("column" in err_msg and "does not exist" in err_msg):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=(
+                    "Falta la columna 'token_actualizacion' en la tabla asamblea_registros. "
+                    "Ejecuta la migración: sql/add_token_actualizacion.sql"
+                ),
+            )
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Database connection error. Please try again later."
+            detail="Database connection error. Please try again later.",
         )
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while fetching registros: {str(e)}"
+            detail=f"An error occurred while fetching registros: {str(e)}",
         )
 
 # Endpoint para buscar registros
@@ -163,14 +172,20 @@ def actualizar_registro(
         
         # Si numero_control fue proporcionado explícitamente como None, establecerlo a None en la BD
         set_none = numero_control_was_provided and numero_control_value is None
-        
+
         registro = update_registro_service(
             db=db,
             registro_id=registro_id,
+            cedula=registro_update.cedula,
+            nombre=registro_update.nombre,
+            telefono=registro_update.telefono,
+            correo=registro_update.correo,
+            numero_torre=registro_update.numero_torre,
+            numero_apartamento=registro_update.numero_apartamento,
+            numero_control=numero_control_value,
+            set_numero_control_none=set_none,
             gestion_poderes=registro_update.gestion_poderes,
             actividad_ingreso=registro_update.actividad_ingreso,
-            numero_control=numero_control_value,
-            set_numero_control_none=set_none
         )
         
         return RegistroResponse.model_validate(registro)

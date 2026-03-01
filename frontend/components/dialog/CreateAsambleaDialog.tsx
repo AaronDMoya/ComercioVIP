@@ -235,6 +235,8 @@ export function CreateAsambleaDialog({ trigger, onAsambleaCreated }: CreateAsamb
           registro.nombre = String(value);
         } else if (headerLower.includes("telefono") || headerLower.includes("teléfono") || headerLower.includes("celular")) {
           registro.telefono = String(value);
+        } else if (headerLower.includes("correo") || headerLower.includes("email") || headerLower.includes("e-mail")) {
+          registro.correo = String(value);
         } else if (headerLower.includes("torre")) {
           registro.numero_torre = String(value);
         } else if (headerLower.includes("apartamento") || headerLower.includes("apto")) {

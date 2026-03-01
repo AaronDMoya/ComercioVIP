@@ -34,6 +34,7 @@ def create_asamblea_with_registros(db: Session, asamblea_data: dict, registros_d
             cedula=registro_data["cedula"],
             nombre=registro_data["nombre"],
             telefono=registro_data.get("telefono"),
+            correo=registro_data.get("correo"),
             numero_torre=registro_data.get("numero_torre"),
             numero_apartamento=registro_data.get("numero_apartamento"),
             numero_control=registro_data.get("numero_control"),

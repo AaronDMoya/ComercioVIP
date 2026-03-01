@@ -1,14 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import OperationalError
 from app.core.database import get_db
 from app.core.auth import require_admin
-from app.schemas.asamblea_schema import AsambleaCreate, AsambleaResponse, AsambleaUpdateEstado
+from app.schemas.asamblea_schema import AsambleaCreate, AsambleaResponse, AsambleaUpdateEstado, ReportarControlRequest
 from app.services.asamblea_service import (
-    create_new_asamblea, 
+    create_new_asamblea,
     get_asambleas,
     update_asamblea_estado_service,
-    delete_asamblea_service
+    delete_asamblea_service,
+    send_reportes_control_service,
+    send_aviso_actualizacion_service,
 )
 from typing import Optional
 from uuid import UUID
@@ -94,6 +97,76 @@ def create_asamblea(
             detail=f"An error occurred while creating asamblea: {str(e)}"
         )
 
+# Endpoint para descargar PDF con QR de ingreso (solo si asamblea no está CERRADA)
+@router.get("/{asamblea_id}/pdf-qr-ingreso")
+def get_pdf_qr_ingreso(
+    asamblea_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin),
+):
+    """
+    Genera y devuelve un PDF con el código QR que enlaza a la página de ingreso (torre/apt).
+    Solo disponible cuando la asamblea no está finalizada.
+    """
+    from app.repositories.asamblea_repository import get_asamblea_by_id
+    from app.services.pdf_service import generar_pdf_qr_ingreso
+
+    asamblea = get_asamblea_by_id(db, asamblea_id)
+    if not asamblea:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Asamblea no encontrada")
+    if asamblea.estado == "CERRADA":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El PDF con QR de ingreso solo está disponible cuando la asamblea no está finalizada.",
+        )
+    try:
+        pdf_bytes = generar_pdf_qr_ingreso(str(asamblea.id), asamblea.title or "Asamblea")
+    except ModuleNotFoundError as e:
+        err = str(e).lower()
+        if "reportlab" in err:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Falta instalar reportlab. Con el venv activado: pip install reportlab. Luego reinicia el servidor del backend.",
+            )
+        if "qrcode" in err:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Falta instalar qrcode. Con el venv activado: pip install qrcode[pil]. Luego reinicia el servidor del backend.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"No se pudo generar el PDF: {e}",
+        )
+    except ImportError as e:
+        err = str(e).lower()
+        if "reportlab" in err:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Falta instalar reportlab. Con el venv activado: pip install reportlab. Luego reinicia el servidor del backend.",
+            )
+        if "qrcode" in err:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Falta instalar qrcode. Con el venv activado: pip install qrcode[pil]. Luego reinicia el servidor del backend.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"No se pudo generar el PDF: {e}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"No se pudo generar el PDF: {str(e)}",
+        )
+    safe_name = (asamblea.title or str(asamblea.id)).replace(" ", "-")
+    filename = f"qr-ingreso-{safe_name}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 # Endpoint para obtener una asamblea por ID
 @router.get("/{asamblea_id}", response_model=AsambleaResponse)
 def get_asamblea(
@@ -162,4 +235,61 @@ def delete_asamblea(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al eliminar la asamblea: {str(e)}"
+        )
+
+
+# Endpoint para enviar reportes de control por correo
+@router.post("/{asamblea_id}/reportar-control")
+def reportar_control(
+    asamblea_id: UUID,
+    body: ReportarControlRequest = Body(...),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin),
+):
+    """
+    Envía por correo el aviso de devolución de control (o multa) a los registros seleccionados.
+    Solo se envían a registros con correo; la asamblea debe estar en estado CERRADA.
+    """
+    try:
+        result = send_reportes_control_service(
+            db=db,
+            asamblea_id=asamblea_id,
+            registro_ids=body.registro_ids,
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al enviar reportes de control: {str(e)}"
+        )
+
+
+# Endpoint para enviar aviso a usuarios para que actualicen sus datos (correo con link/QR)
+@router.post("/{asamblea_id}/aviso-actualizar-datos")
+def aviso_actualizar_datos(
+    asamblea_id: UUID,
+    body: ReportarControlRequest = Body(...),
+    db: Session = Depends(get_db),
+    current_user: dict = Depends(require_admin),
+):
+    """
+    Envía por correo un aviso a los registros seleccionados para que actualicen sus datos.
+    El correo incluye un enlace único y QR que lleva a la página de actualización (sin login).
+    Solo se envían a registros con correo.
+    """
+    try:
+        result = send_aviso_actualizacion_service(
+            db=db,
+            asamblea_id=asamblea_id,
+            registro_ids=body.registro_ids,
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al enviar avisos de actualización: {str(e)}"
         )

@@ -68,11 +68,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
      */
     useEffect(() => {
         const handleSessionExpired = () => {
-            // Limpiar el estado del usuario
             setUser(null);
-            // Redirigir al login solo si no estamos ya en la página de login
-            if (typeof window !== "undefined" && !window.location.pathname.includes("/login")) {
-                window.location.href = "/login";
+            // Redirigir al login solo en rutas que requieren sesión (no en login ni en /update-users/*)
+            if (typeof window !== "undefined") {
+                const path = window.location.pathname || "";
+                if (!path.includes("/login") && !path.startsWith("/update-users")) {
+                    window.location.href = "/login";
+                }
             }
         };
 

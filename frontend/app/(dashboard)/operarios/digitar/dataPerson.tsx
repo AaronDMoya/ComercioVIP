@@ -353,12 +353,11 @@ export default function DataPerson() {
       }
 
       // Actualizar registro
-      const registroActualizado = await actualizarRegistro(
-        registroSeleccionado.id,
-        gestionPoderesActualizar, // gestion_poderes (actualizado con numero_control en poder_1)
-        actividadIngresoNuevo,
-        numeroControlActualizar
-      );
+      const registroActualizado = await actualizarRegistro(registroSeleccionado.id, {
+        gestion_poderes: gestionPoderesActualizar,
+        actividad_ingreso: actividadIngresoNuevo,
+        numero_control: numeroControlActualizar,
+      });
 
       actualizarRegistroContext(registroActualizado);
       
@@ -851,10 +850,9 @@ export default function DataPerson() {
           };
           
           // Actualizar el registro con el número de control
-          registroActualizado = await actualizarRegistro(
-            registroSeleccionado.id,
-            gestionPoderesActualizado
-          );
+          registroActualizado = await actualizarRegistro(registroSeleccionado.id, {
+            gestion_poderes: gestionPoderesActualizado,
+          });
         }
       }
       
@@ -951,10 +949,9 @@ export default function DataPerson() {
       });
 
       // Actualizar en el backend
-      const registroActualizado = await actualizarRegistro(
-        registroSeleccionado.id,
-        gestionPoderesNuevo
-      );
+      const registroActualizado = await actualizarRegistro(registroSeleccionado.id, {
+        gestion_poderes: gestionPoderesNuevo,
+      });
 
       actualizarRegistroContext(registroActualizado);
       
@@ -1040,10 +1037,9 @@ export default function DataPerson() {
         }
 
         // Actualizar en el backend
-        const registroActualizado = await actualizarRegistro(
-          registroSeleccionado.id,
-          gestionPoderesNuevo
-        );
+        const registroActualizado = await actualizarRegistro(registroSeleccionado.id, {
+          gestion_poderes: gestionPoderesNuevo,
+        });
 
         actualizarRegistroContext(registroActualizado);
         toast.success("Poder eliminado");
@@ -1087,6 +1083,9 @@ export default function DataPerson() {
               )}
               {registroSeleccionado.cedula && (
                 <p>N° Identidad: {registroSeleccionado.cedula}</p>
+              )}
+              {registroSeleccionado.correo && (
+                <p>Correo: {registroSeleccionado.correo}</p>
               )}
                         </div>
                     </div>

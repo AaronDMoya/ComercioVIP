@@ -37,12 +37,14 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
             ...options,
         });
 
-        // Si la respuesta es 401 (Unauthorized), significa que la sesión ha expirado
-        // Disparamos un evento personalizado para que el AuthContext lo maneje
+        // Si la respuesta es 401 (Unauthorized), sesión expirada. Solo redirigir en rutas que requieren login.
+        // Las rutas /update-users/* son públicas (ingreso por torre/apt o token), no deben redirigir a login.
         if (res.status === 401 && !endpoint.includes("/auth/login")) {
-            // Disparar evento de sesión expirada
             if (typeof window !== "undefined") {
-                window.dispatchEvent(new CustomEvent("session-expired"));
+                const pathname = window.location.pathname || "";
+                if (!pathname.startsWith("/update-users")) {
+                    window.dispatchEvent(new CustomEvent("session-expired"));
+                }
             }
         }
 

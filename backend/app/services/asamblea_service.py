@@ -10,7 +10,13 @@ from app.repositories.asamblea_repository import (
     update_asamblea_estado,
     delete_asamblea
 )
-from typing import List, Dict, Optional
+from app.repositories.registro_repository import get_registros_by_ids_and_asamblea
+from app.services.email_service import send_reporte_control, send_aviso_actualizacion
+from app.models.email_model import Email
+from app.repositories.registro_repository import ensure_token_actualizacion
+from app.core.config import FRONTEND_URL
+from datetime import datetime, timezone
+from typing import List, Dict, Optional, Any
 
 # Servicio para crear una asamblea con sus registros
 def create_new_asamblea(db: Session, data_asamblea: AsambleaCreate, created_by: str):
@@ -28,6 +34,7 @@ def create_new_asamblea(db: Session, data_asamblea: AsambleaCreate, created_by: 
             "cedula": registro.cedula,
             "nombre": registro.nombre,
             "telefono": registro.telefono,
+            "correo": registro.correo,
             "numero_torre": registro.numero_torre,
             "numero_apartamento": registro.numero_apartamento,
             "numero_control": registro.numero_control,
@@ -119,3 +126,143 @@ def delete_asamblea_service(db: Session, asamblea_id: UUID):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al eliminar la asamblea: {str(e)}"
         )
+
+
+def _numero_control_from_registro(registro: Any) -> str:
+    """Obtiene el número de control del registro (campo o primer poder en gestion_poderes)."""
+    if registro.numero_control:
+        return str(registro.numero_control).strip()
+    gp = registro.gestion_poderes
+    if not gp or not isinstance(gp, dict):
+        return ""
+    for key in sorted(gp.keys()):
+        poder = gp.get(key)
+        if poder and isinstance(poder, dict) and poder.get("numero_control"):
+            return str(poder["numero_control"]).strip()
+    return ""
+
+
+def send_reportes_control_service(
+    db: Session,
+    asamblea_id: UUID,
+    registro_ids: List[UUID],
+) -> Dict[str, Any]:
+    """
+    Envía el correo de reporte de control a los registros seleccionados.
+    Solo se envían a registros con correo. Retorna enviados, fallidos y lista de errores.
+    """
+    asamblea = get_asamblea_by_id(db, asamblea_id)
+    if not asamblea:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Asamblea no encontrada",
+        )
+    if asamblea.estado != "CERRADA":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Solo se pueden enviar reportes de control cuando la asamblea está cerrada.",
+        )
+    registros = get_registros_by_ids_and_asamblea(db, asamblea_id, registro_ids)
+    asamblea_title = asamblea.title or "Asamblea"
+    enviados = 0
+    fallidos = 0
+    errores: List[str] = []
+    for reg in registros:
+        correo = (reg.correo or "").strip()
+        if not correo:
+            continue
+        nombre = (reg.nombre or "Estimado/a").strip()
+        numero_control = _numero_control_from_registro(reg) or "—"
+        # Registrar en tabla emails antes de enviar (estado PENDIENTE)
+        email_record = Email(
+            asamblea_id=asamblea_id,
+            destinatario=correo,
+            estado="PENDIENTE",
+            tipo="REPORTE CONTROL",
+        )
+        db.add(email_record)
+        db.flush()
+        try:
+            ok = send_reporte_control(
+                to_email=correo,
+                nombre=nombre,
+                numero_control=numero_control,
+                asamblea_title=asamblea_title,
+            )
+            if ok:
+                email_record.estado = "ENVIADO"
+                enviados += 1
+            else:
+                email_record.estado = "ERROR"
+                fallidos += 1
+                errores.append(f"{correo}: no se pudo enviar")
+        except Exception as e:
+            email_record.estado = "ERROR"
+            fallidos += 1
+            errores.append(f"{correo}: {str(e)}")
+        email_record.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"enviados": enviados, "fallidos": fallidos, "errores": errores}
+
+
+def send_aviso_actualizacion_service(
+    db: Session,
+    asamblea_id: UUID,
+    registro_ids: List[UUID],
+) -> Dict[str, Any]:
+    """
+    Envía por correo el aviso para que los usuarios actualicen sus datos.
+    Incluye en el correo un enlace único (con token) y QR para ir a la página de actualización.
+    Solo se envían a registros con correo. Registra en tabla emails con tipo ACTUALIZACION.
+    """
+    asamblea = get_asamblea_by_id(db, asamblea_id)
+    if not asamblea:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Asamblea no encontrada",
+        )
+    registros = get_registros_by_ids_and_asamblea(db, asamblea_id, registro_ids)
+    asamblea_title = asamblea.title or "Asamblea"
+    enviados = 0
+    fallidos = 0
+    errores: List[str] = []
+    for reg in registros:
+        correo = (reg.correo or "").strip()
+        if not correo:
+            continue
+        nombre = (reg.nombre or "Estimado/a").strip()
+        token = ensure_token_actualizacion(db, reg.id)
+        if not token:
+            fallidos += 1
+            errores.append(f"{correo}: no se pudo generar enlace")
+            continue
+        url_actualizar = f"{FRONTEND_URL}/update-users/actualizar?token={token}"
+        email_record = Email(
+            asamblea_id=asamblea_id,
+            destinatario=correo,
+            estado="PENDIENTE",
+            tipo="ACTUALIZACION",
+        )
+        db.add(email_record)
+        db.flush()
+        try:
+            ok = send_aviso_actualizacion(
+                to_email=correo,
+                nombre=nombre,
+                asamblea_title=asamblea_title,
+                url_actualizar=url_actualizar,
+            )
+            if ok:
+                email_record.estado = "ENVIADO"
+                enviados += 1
+            else:
+                email_record.estado = "ERROR"
+                fallidos += 1
+                errores.append(f"{correo}: no se pudo enviar")
+        except Exception as e:
+            email_record.estado = "ERROR"
+            fallidos += 1
+            errores.append(f"{correo}: {str(e)}")
+        email_record.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return {"enviados": enviados, "fallidos": fallidos, "errores": errores}

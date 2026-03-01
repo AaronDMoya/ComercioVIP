@@ -12,6 +12,7 @@ CREATE TABLE public.asamblea_registros (
 	gestion_poderes jsonb NULL,
 	created_at timestamptz DEFAULT now() NOT NULL,
 	updated_at timestamptz DEFAULT now() NOT NULL,
+	correo varchar NULL,
 	CONSTRAINT asamblea_registros_pkey PRIMARY KEY (id)
 );
 

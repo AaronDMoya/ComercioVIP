@@ -30,12 +30,14 @@ class AsambleaRegistro(Base):
     cedula = Column(String(20), nullable=False)
     nombre = Column(String(100), nullable=False)
     telefono = Column(String(20), nullable=True)
+    correo = Column(String(255), nullable=True)
     numero_torre = Column(String(10), nullable=True)
     numero_apartamento = Column(String(10), nullable=True)
     numero_control = Column(String(20), nullable=True)
     coeficiente = Column(Numeric(10, 4), nullable=True)
     actividad_ingreso = Column(JSONB, nullable=True)
     gestion_poderes = Column(JSONB, nullable=True)
+    token_actualizacion = Column(String(255), nullable=True, unique=True)  # único por registro, para link/QR actualizar datos
     created_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"), nullable=False)
     updated_at = Column(TIMESTAMP(timezone=True), server_default=text("now()"), nullable=False)
 

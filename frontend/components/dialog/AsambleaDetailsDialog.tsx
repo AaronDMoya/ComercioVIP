@@ -13,11 +13,12 @@ import { FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Download, FileSpreadsheet, Loader2, Search, Send } from "lucide-react";
+import { Download, FileSpreadsheet, FileText, Loader2, Search, Send, XCircle } from "lucide-react";
 import { toast } from "sonner";
-import { getAsamblea, updateAsambleaEstado, type Asamblea } from "@/lib/services/asambleaService";
+import { apiFetch } from "@/lib/api";
+import { getAsamblea, updateAsambleaEstado, sendReportesControl, sendAvisoActualizarDatos, type Asamblea } from "@/lib/services/asambleaService";
 import { getRegistros, type Registro } from "@/lib/services/registroService";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -43,6 +44,12 @@ export function AsambleaDetailsDialog({
   // Estados para la pestaña de Reportar Control
   const [searchControl, setSearchControl] = useState("");
   const [selectedRegistros, setSelectedRegistros] = useState<Set<string>>(new Set());
+  const [isSendingReporte, setIsSendingReporte] = useState(false);
+  // Estados para Avisar actualizar datos
+  const [searchAviso, setSearchAviso] = useState("");
+  const [selectedAviso, setSelectedAviso] = useState<Set<string>>(new Set());
+  const [isSendingAviso, setIsSendingAviso] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   // Cargar datos de la asamblea cuando se abre el dialog
   useEffect(() => {
@@ -423,57 +430,205 @@ export function AsambleaDetailsDialog({
     return `${mins}m`;
   };
 
+  // Obtener actividades ordenadas de actividad_ingreso (actividad_1, actividad_2, ...)
+  const getActividadesOrdenadas = (actividadIngreso: Record<string, any> | null): Array<{ tipo: string; hora: string }> => {
+    if (!actividadIngreso || typeof actividadIngreso !== "object") return [];
+    const keys = Object.keys(actividadIngreso)
+      .filter((k) => k.startsWith("actividad_"))
+      .sort((a, b) => {
+        const numA = parseInt(a.replace("actividad_", ""), 10);
+        const numB = parseInt(b.replace("actividad_", ""), 10);
+        return numA - numB;
+      });
+    return keys
+      .map((key) => {
+        const a = actividadIngreso[key];
+        if (!a || typeof a !== "object" || !a.tipo || !a.hora) return null;
+        return { tipo: String(a.tipo).toLowerCase(), hora: String(a.hora) };
+      })
+      .filter((a): a is { tipo: string; hora: string } => a !== null);
+  };
+
+  // Primera hora de ingreso o reingreso
+  const getHoraIngreso = (actividadIngreso: Record<string, any> | null): string => {
+    const actividades = getActividadesOrdenadas(actividadIngreso);
+    const primera = actividades.find((a) => a.tipo === "ingreso" || a.tipo === "reingreso");
+    return primera?.hora ?? "";
+  };
+
+  // Última hora de salida
+  const getHoraSalida = (actividadIngreso: Record<string, any> | null): string => {
+    const actividades = getActividadesOrdenadas(actividadIngreso);
+    let ultima = "";
+    for (let i = actividades.length - 1; i >= 0; i--) {
+      if (actividades[i].tipo === "salida") {
+        ultima = actividades[i].hora;
+        break;
+      }
+    }
+    return ultima;
+  };
+
+  // Asistencia: Si si tiene al menos un ingreso o reingreso, No si no
+  const getAsistenciaAsamblea = (actividadIngreso: Record<string, any> | null): "Si" | "No" => {
+    const actividades = getActividadesOrdenadas(actividadIngreso);
+    const tieneIngreso = actividades.some((a) => a.tipo === "ingreso" || a.tipo === "reingreso");
+    return tieneIngreso ? "Si" : "No";
+  };
+
+  // ¿Poderes?: Si si tiene al menos poder_2, poder_3, etc. (no cuenta poder_1)
+  const tienePoderesAdicionales = (gestionPoderes: Record<string, any> | null): boolean => {
+    if (!gestionPoderes || typeof gestionPoderes !== "object") return false;
+    const keys = Object.keys(gestionPoderes).filter((k) => k.startsWith("poder_") && k !== "poder_1");
+    return keys.some((key) => {
+      const p = gestionPoderes[key];
+      return p && typeof p === "object" && (p.torre || p.apartamento || p.numero_control);
+    });
+  };
+
+  // Estilo azul oscuro para encabezados de columna (xlsx-js-style)
+  const headerCellStyle = {
+    fill: { fgColor: { rgb: "1E3A5F" }, patternType: "solid" },
+    font: { color: { rgb: "FFFFFF" }, bold: true },
+  };
+
   // Exportar a XLSX - Informe Final
-  const handleExportXLSX = () => {
+  const handleExportXLSX = async () => {
     if (registros.length === 0) {
       toast.error("No hay registros para exportar");
       return;
     }
+    if (!asamblea) return;
 
     try {
-      // Crear datos para el Excel
+      // Obtener quorum como en el panel de operarios
+      let quorumPresente = "N/A";
+      let quorumFinal = "N/A";
+      let inmueblesRegistrados = 0;
+      let inmueblesNoRegistrados = registros.length;
+      try {
+        const res = await apiFetch(`/registros/asamblea/${asamblea.id}/estadisticas/quorum-coeficiente`, { method: "GET" });
+        if (res.ok) {
+          const q = await res.json();
+          const totalReg = q.total_registros || 0;
+          const presentes = q.registros_presentes ?? 0;
+          const totalCoeff = q.total_coeficiente ?? 0;
+          const coeffPresente = q.coeficiente_presente ?? 0;
+          inmueblesRegistrados = presentes;
+          inmueblesNoRegistrados = Math.max(0, totalReg - presentes);
+          quorumPresente = totalReg > 0 ? `${((presentes / totalReg) * 100).toFixed(1)}%` : "N/A";
+          quorumFinal = totalCoeff > 0 ? `${((coeffPresente / totalCoeff) * 100).toFixed(1)}%` : "N/A";
+        }
+      } catch {
+        // Calcular presentes desde registros si falla la API
+        const presentes = registros.filter((r) => getAsistenciaAsamblea(r.actividad_ingreso) === "Si").length;
+        inmueblesRegistrados = presentes;
+        inmueblesNoRegistrados = registros.length - presentes;
+        quorumPresente = registros.length > 0 ? `${((presentes / registros.length) * 100).toFixed(1)}%` : "N/A";
+        quorumFinal = "N/A";
+      }
+
+      const fechaAsamblea = asamblea.fecha_inicio ? formatDate(asamblea.fecha_inicio).split(",")[0] ?? formatDate(asamblea.fecha_inicio) : "N/A";
+      const nombreAsamblea = asamblea.title || "N/A";
+      const inicioAsamblea = formatDate(asamblea.fecha_inicio);
+      const finAsamblea = formatDate(asamblea.fecha_final);
+
+      const colHeaders = [
+        "Asistencia asamblea",
+        "N° Torre / Bloque",
+        "N° Apartamento / Casa",
+        "Nombre",
+        "Nombre de quien lo representa o asistió a la asamblea",
+        "¿Poderes?",
+        "Coeficiente",
+        "Cédula",
+        "N° Control",
+        "Nota",
+        "Hora de ingreso",
+        "Hora de salida",
+        "Total de tiempo presente",
+      ];
+
       const datos = registros.map((registro) => {
         const tiempoPresente = calcularTiempoPresente(registro.actividad_ingreso);
-
-        return {
-          "Cédula": registro.cedula,
-          "Nombre": registro.nombre,
-          "Teléfono": registro.telefono || "",
-          "N° Torre": registro.numero_torre || "",
-          "N° Apartamento": registro.numero_apartamento || "",
-          "N° Control": registro.numero_control || "",
-          "Coeficiente": registro.coeficiente || 0,
-          "Tiempo Presente": formatearTiempo(tiempoPresente),
-          "Tiempo Presente (minutos)": tiempoPresente,
-          "Fecha Creación": formatDate(registro.created_at),
-        };
+        const asistencia = getAsistenciaAsamblea(registro.actividad_ingreso);
+        const poderes = tienePoderesAdicionales(registro.gestion_poderes) ? "Si" : "No";
+        return [
+          asistencia,
+          registro.numero_torre || "",
+          registro.numero_apartamento || "",
+          registro.nombre,
+          registro.nombre,
+          poderes,
+          registro.coeficiente ?? "",
+          registro.cedula,
+          registro.numero_control || "",
+          "",
+          getHoraIngreso(registro.actividad_ingreso),
+          getHoraSalida(registro.actividad_ingreso),
+          formatearTiempo(tiempoPresente),
+        ];
       });
 
-      // Crear workbook
-      const wb = XLSX.utils.book_new();
+      // Fila 1: etiquetas de la cabecera informativa
+      const row1Labels = [
+        "Quorum presente",
+        "Quorum final",
+        "Inmuebles Registrados",
+        "Inmuebles no Registrados",
+        "Fecha de la Asamblea",
+        "Nombre de la Asamblea",
+        "Inicio de la asamblea",
+        "Fin de la asamblea",
+        ...Array(colHeaders.length - 8).fill(""),
+      ];
+      // Fila 2: valores de la cabecera informativa
+      const row2Values = [
+        quorumPresente,
+        quorumFinal,
+        inmueblesRegistrados,
+        inmueblesNoRegistrados,
+        fechaAsamblea,
+        nombreAsamblea,
+        inicioAsamblea,
+        finAsamblea,
+        ...Array(colHeaders.length - 8).fill(""),
+      ];
+      // Fila 3: encabezados de la tabla (azul oscuro)
+      const aoa: (string | number)[][] = [row1Labels, row2Values, colHeaders, ...datos];
 
-      // Crear worksheet
-      const ws = XLSX.utils.json_to_sheet(datos);
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-      // Ajustar ancho de columnas
+      // Aplicar estilo azul oscuro a la fila 3 (encabezados de columna)
+      const headerRow = 3; // 1-based Excel row
+      for (let c = 0; c < colHeaders.length; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: headerRow - 1, c });
+        const cell = ws[cellRef];
+        if (cell) {
+          (ws[cellRef] as any).s = headerCellStyle;
+        }
+      }
+
       const colWidths = [
-        { wch: 15 }, // Cédula
-        { wch: 30 }, // Nombre
-        { wch: 15 }, // Teléfono
-        { wch: 10 }, // N° Torre
-        { wch: 15 }, // N° Apartamento
-        { wch: 12 }, // N° Control
-        { wch: 12 }, // Coeficiente
-        { wch: 18 }, // Tiempo Presente
-        { wch: 22 }, // Tiempo Presente (minutos)
-        { wch: 20 }, // Fecha Creación
+        { wch: 20 },
+        { wch: 18 },
+        { wch: 22 },
+        { wch: 30 },
+        { wch: 45 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 15 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 22 },
       ];
       ws["!cols"] = colWidths;
 
-      // Agregar worksheet al workbook
+      const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "Registros");
 
-      // Agregar hoja de resumen
       const totalRegistros = registros.length;
       const totalCoeficiente = registros.reduce((sum, r) => sum + (r.coeficiente || 0), 0);
       const totalTiempoPresente = registros.reduce(
@@ -494,7 +649,6 @@ export function AsambleaDetailsDialog({
       wsResumen["!cols"] = [{ wch: 25 }, { wch: 20 }];
       XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
-      // Descargar archivo
       XLSX.writeFile(wb, `${asamblea?.title || "asamblea"}_informe_final.xlsx`);
 
       toast.success("Archivo XLSX exportado exitosamente");
@@ -565,12 +719,101 @@ export function AsambleaDetailsDialog({
   };
 
   // Manejar envío de reporte
-  const handleEnviarReporte = () => {
-    if (selectedRegistros.size === 0) {
+  const handleEnviarReporte = async () => {
+    if (!asambleaId || selectedRegistros.size === 0) {
       toast.error("Debes seleccionar al menos un registro");
       return;
     }
-    toast.info("Funcionalidad en desarrollo");
+    setIsSendingReporte(true);
+    try {
+      const result = await sendReportesControl(asambleaId, Array.from(selectedRegistros));
+      if (result.enviados > 0) {
+        toast.success(
+          result.fallidos > 0
+            ? `Se enviaron ${result.enviados} reporte(s). ${result.fallidos} fallido(s).`
+            : `Se enviaron ${result.enviados} reporte(s) correctamente.`
+        );
+        if (result.errores?.length) {
+          result.errores.slice(0, 3).forEach((msg) => toast.error(msg));
+          if (result.errores.length > 3) {
+            toast.error(`... y ${result.errores.length - 3} error(es) más`);
+          }
+        }
+      } else if (result.fallidos > 0) {
+        toast.error(`No se pudo enviar ningún reporte (${result.fallidos} fallido(s)).`);
+        result.errores?.slice(0, 3).forEach((msg) => toast.error(msg));
+      }
+    } catch (error) {
+      console.error("Error al enviar reportes:", error);
+      toast.error(error instanceof Error ? error.message : "Error al enviar reportes de control");
+    } finally {
+      setIsSendingReporte(false);
+    }
+  };
+
+  // Avisar actualizar: toggle y envío
+  const handleToggleAviso = (id: string) => {
+    setSelectedAviso((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleEnviarAviso = async () => {
+    if (!asambleaId || selectedAviso.size === 0) {
+      toast.error("Debes seleccionar al menos un registro");
+      return;
+    }
+    setIsSendingAviso(true);
+    try {
+      const result = await sendAvisoActualizarDatos(asambleaId, Array.from(selectedAviso));
+      if (result.enviados > 0) {
+        toast.success(
+          result.fallidos > 0
+            ? `Se enviaron ${result.enviados} aviso(s). ${result.fallidos} fallido(s).`
+            : `Se enviaron ${result.enviados} aviso(s) correctamente.`
+        );
+        if (result.errores?.length) {
+          result.errores.slice(0, 3).forEach((msg) => toast.error(msg));
+        }
+      } else if (result.fallidos > 0) {
+        toast.error(`No se pudo enviar ningún aviso (${result.fallidos} fallido(s)).`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al enviar avisos");
+    } finally {
+      setIsSendingAviso(false);
+    }
+  };
+
+  // Generar PDF con QR de ingreso desde el backend (link a página torre/apt)
+  const handleGenerarPdfIngreso = async () => {
+    if (!asamblea?.id) return;
+    setIsGeneratingPdf(true);
+    try {
+      const response = await apiFetch(`/asambleas/${asamblea.id}/pdf-qr-ingreso`, { method: "GET" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.detail || `Error ${response.status}`);
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        response.headers.get("Content-Disposition")?.match(/filename="?([^";]+)"?/)?.[1] ||
+        `qr-ingreso-${(asamblea.title || asamblea.id).replace(/\s+/g, "-")}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("PDF descargado correctamente");
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : "Error al generar el PDF");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   // Renderizar pestaña de Reportar Control
@@ -596,6 +839,11 @@ export function AsambleaDetailsDialog({
       return control.toLowerCase().includes(searchControl.toLowerCase());
     });
 
+    // Solo los que tienen correo pueden ser seleccionados
+    const registrosConCorreo = registrosFiltrados.filter(
+      (r) => r.correo && String(r.correo).trim() !== ""
+    );
+
     if (registrosConControl.length === 0) {
       return (
         <div className="text-center py-12 text-gray-500">
@@ -612,11 +860,15 @@ export function AsambleaDetailsDialog({
           </h3>
           <Button
             onClick={handleEnviarReporte}
-            disabled={selectedRegistros.size === 0}
+            disabled={selectedRegistros.size === 0 || isSendingReporte}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
-            <Send className="w-4 h-4 mr-2" />
-            Enviar Reporte ({selectedRegistros.size})
+            {isSendingReporte ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4 mr-2" />
+            )}
+            {isSendingReporte ? "Enviando…" : `Enviar Reporte (${selectedRegistros.size})`}
           </Button>
         </div>
 
@@ -641,12 +893,22 @@ export function AsambleaDetailsDialog({
               <TableRow>
                 <TableHead className="w-12">
                   <Checkbox
-                    checked={selectedRegistros.size === registrosFiltrados.length && registrosFiltrados.length > 0}
-                    onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                    checked={
+                      registrosConCorreo.length > 0 &&
+                      registrosConCorreo.every((r) => selectedRegistros.has(r.id))
+                    }
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedRegistros(new Set(registrosConCorreo.map((r) => r.id)));
+                      } else {
+                        setSelectedRegistros(new Set());
+                      }
+                    }}
                   />
                 </TableHead>
                 <TableHead>Nombre</TableHead>
                 <TableHead>Cédula</TableHead>
+                <TableHead>Correo</TableHead>
                 <TableHead>N° Control</TableHead>
                 <TableHead>Coeficiente</TableHead>
               </TableRow>
@@ -654,25 +916,159 @@ export function AsambleaDetailsDialog({
             <TableBody>
               {registrosFiltrados.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                  <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                     No se encontraron registros con el control buscado
                   </TableCell>
                 </TableRow>
               ) : (
-                registrosFiltrados.map((registro) => (
+                registrosFiltrados.map((registro) => {
+                  const tieneCorreo = registro.correo && String(registro.correo).trim() !== "";
+                  return (
                   <TableRow key={registro.id}>
                     <TableCell>
-                      <Checkbox
-                        checked={selectedRegistros.has(registro.id)}
-                        onCheckedChange={() => handleToggleRegistro(registro.id)}
-                      />
+                      {tieneCorreo ? (
+                        <Checkbox
+                          checked={selectedRegistros.has(registro.id)}
+                          onCheckedChange={() => handleToggleRegistro(registro.id)}
+                        />
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex cursor-not-allowed text-gray-400">
+                              <XCircle className="h-5 w-5" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="max-w-xs">
+                            <p>Este usuario no tiene correo electrónico registrado y no puede ser seleccionado.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </TableCell>
                     <TableCell className="font-medium">{registro.nombre}</TableCell>
                     <TableCell>{registro.cedula}</TableCell>
+                    <TableCell className="max-w-[200px] truncate" title={registro.correo ?? undefined}>
+                      {registro.correo ?? "-"}
+                    </TableCell>
                     <TableCell>{getNumeroControl(registro)}</TableCell>
                     <TableCell>{registro.coeficiente || "N/A"}</TableCell>
                   </TableRow>
-                ))
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    );
+  };
+
+  // Renderizar pestaña Avisar actualizar datos (todos los registros, selección por correo)
+  const renderAvisarActualizarTab = () => {
+    const term = (searchAviso || "").trim().toLowerCase();
+    const filtrados = term
+      ? registros.filter(
+          (r) =>
+            (r.nombre || "").toLowerCase().includes(term) ||
+            (r.cedula || "").toLowerCase().includes(term) ||
+            (r.correo || "").toLowerCase().includes(term)
+        )
+      : registros;
+    const conCorreo = filtrados.filter((r) => r.correo && String(r.correo).trim() !== "");
+
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xl font-semibold text-gray-900">Avisar para actualizar datos</h3>
+          <Button
+            onClick={handleEnviarAviso}
+            disabled={selectedAviso.size === 0 || isSendingAviso}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            {isSendingAviso ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4 mr-2" />
+            )}
+            {isSendingAviso ? "Enviando…" : `Enviar aviso (${selectedAviso.size})`}
+          </Button>
+        </div>
+        <p className="text-sm text-gray-600">
+          Seleccione los registros a los que desea enviar un correo con enlace y QR para que
+          actualicen sus datos (cédula, nombre, teléfono, correo). Solo se puede seleccionar a quienes
+          tengan correo registrado.
+        </p>
+        <div className="w-full">
+          <InputGroup>
+            <InputGroupInput
+              placeholder="Buscar por nombre, cédula o correo"
+              value={searchAviso}
+              onChange={(e) => setSearchAviso(e.target.value)}
+            />
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
+        </div>
+        <div className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">
+                  <Checkbox
+                    checked={
+                      conCorreo.length > 0 && conCorreo.every((r) => selectedAviso.has(r.id))
+                    }
+                    onCheckedChange={(checked) => {
+                      if (checked) setSelectedAviso(new Set(conCorreo.map((r) => r.id)));
+                      else setSelectedAviso(new Set());
+                    }}
+                  />
+                </TableHead>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Cédula</TableHead>
+                <TableHead>Correo</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtrados.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                    No hay registros o no coincide la búsqueda
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filtrados.map((registro) => {
+                  const tieneCorreo =
+                    registro.correo && String(registro.correo).trim() !== "";
+                  return (
+                    <TableRow key={registro.id}>
+                      <TableCell>
+                        {tieneCorreo ? (
+                          <Checkbox
+                            checked={selectedAviso.has(registro.id)}
+                            onCheckedChange={() => handleToggleAviso(registro.id)}
+                          />
+                        ) : (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="inline-flex cursor-not-allowed text-gray-400">
+                                <XCircle className="h-5 w-5" />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs">
+                              <p>Sin correo registrado; no se puede enviar aviso.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">{registro.nombre}</TableCell>
+                      <TableCell>{registro.cedula}</TableCell>
+                      <TableCell className="max-w-[200px] truncate" title={registro.correo ?? undefined}>
+                        {registro.correo ?? "-"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -702,13 +1098,21 @@ export function AsambleaDetailsDialog({
             </div>
           ) : asamblea ? (
             <Tabs defaultValue="informacion" className="w-full">
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="flex flex-wrap gap-1 w-full h-auto">
                 <TabsTrigger value="informacion">Información</TabsTrigger>
                 <TabsTrigger value="estado">Estado</TabsTrigger>
                 <TabsTrigger value="estadisticas">Estadísticas</TabsTrigger>
                 <TabsTrigger value="exportar">Exportar</TabsTrigger>
-                <TabsTrigger 
-                  value="reportar" 
+                <TabsTrigger value="aviso">Avisar actualizar</TabsTrigger>
+                <TabsTrigger
+                  value="pdfqr"
+                  disabled={asamblea.estado === "CERRADA"}
+                  className={asamblea.estado === "CERRADA" ? "opacity-50 cursor-not-allowed" : ""}
+                >
+                  PDF QR ingreso
+                </TabsTrigger>
+                <TabsTrigger
+                  value="reportar"
                   disabled={asamblea.estado !== "CERRADA"}
                   className={asamblea.estado !== "CERRADA" ? "opacity-50 cursor-not-allowed" : ""}
                 >
@@ -934,6 +1338,45 @@ export function AsambleaDetailsDialog({
                 </div>
               </TabsContent>
 
+              {/* Pestaña: Avisar actualizar datos */}
+              <TabsContent value="aviso" className="space-y-4 mt-6">
+                {renderAvisarActualizarTab()}
+              </TabsContent>
+              {/* Pestaña: PDF con QR de ingreso (solo si asamblea no finalizada) */}
+              <TabsContent value="pdfqr" className="space-y-4 mt-6">
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
+                    Generar PDF con QR de ingreso
+                  </h3>
+                  {asamblea.estado === "CERRADA" ? (
+                    <p className="text-gray-500 py-4">
+                      Esta opción solo está disponible cuando la asamblea no está finalizada. El QR
+                      dirige a la página de ingreso con torre y apartamento.
+                    </p>
+                  ) : (
+                    <>
+                      <p className="text-gray-600 text-sm">
+                        Genera un PDF con un código QR único para esta asamblea. Al escanearlo, los
+                        usuarios llegarán a la página de ingreso donde deberán ingresar su número
+                        de torre y apartamento.
+                      </p>
+                      <Button
+                        onClick={handleGenerarPdfIngreso}
+                        disabled={isGeneratingPdf}
+                        variant="outline"
+                        className="gap-2"
+                      >
+                        {isGeneratingPdf ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <FileText className="w-4 h-4" />
+                        )}
+                        {isGeneratingPdf ? "Generando…" : "Descargar PDF con QR"}
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </TabsContent>
               {/* Pestaña: Reportar Control */}
               <TabsContent value="reportar" className="space-y-4 mt-6">
                 {renderReportarControlTab()}

@@ -8,6 +8,7 @@ class RegistroCreate(BaseModel):
     cedula: str
     nombre: str
     telefono: Optional[str] = None
+    correo: Optional[str] = None
     numero_torre: Optional[str] = None
     numero_apartamento: Optional[str] = None
     numero_control: Optional[str] = None
@@ -23,6 +24,11 @@ class AsambleaCreate(BaseModel):
 # Esquema para actualizar el estado de una asamblea
 class AsambleaUpdateEstado(BaseModel):
     estado: str  # CREADA, ACTIVA, CERRADA
+
+
+# Esquema para enviar reportes de control por correo
+class ReportarControlRequest(BaseModel):
+    registro_ids: List[UUID]
 
 # Esquema para respuesta de asamblea
 class AsambleaResponse(BaseModel):

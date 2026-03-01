@@ -5,6 +5,7 @@ from app.core.database import engine, Base
 from app.core.config import CORS_ORIGINS
 from app.models.user_model import User
 from app.models.asamblea_model import Asamblea, AsambleaRegistro
+from app.models.email_model import Email  # noqa: F401 - registra la tabla emails en Base.metadata
 import logging
 
 # Configurar logging

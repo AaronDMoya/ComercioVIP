@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>QR Ingreso - Registros Votación</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 11pt;
+      color: #333;
+      line-height: 1.5;
+    }
+    .page {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 35mm 30mm 30mm 30mm;
+    }
+    .header {
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #ddd;
+    }
+    .header h1 {
+      font-size: 20pt;
+      font-weight: bold;
+      color: #222;
+      margin-bottom: 4px;
+    }
+    .header .subtitle {
+      font-size: 11pt;
+      color: #555;
+    }
+    .meta {
+      font-size: 9pt;
+      color: #888;
+      margin-top: 10px;
+    }
+    .block {
+      margin-bottom: 22px;
+    }
+    .block-title {
+      font-size: 12pt;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .block p {
+      margin-bottom: 6px;
+      color: #444;
+    }
+    .block p strong {
+      color: #333;
+    }
+    .instructions ol {
+      margin: 8px 0 0 20px;
+    }
+    .instructions li {
+      margin-bottom: 6px;
+      color: #444;
+    }
+    .qr-wrap {
+      text-align: center;
+      margin: 32px 0 24px 0;
+      padding: 28px 0;
+    }
+    .qr-wrap .qr-label {
+      font-size: 12pt;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 20px;
+    }
+    .qr-wrap img {
+      width: 320px;
+      height: 320px;
+      margin: 0 auto 18px auto;
+      display: block;
+    }
+    .qr-wrap .url {
+      font-size: 9pt;
+      color: #666;
+      word-break: break-all;
+      padding: 0 20px;
+      line-height: 1.4;
+    }
+    .footer-note {
+      margin-top: 32px;
+      padding-top: 14px;
+      border-top: 1px solid #ddd;
+      font-size: 9pt;
+      color: #888;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <div class="header">
+      <h1>Registros Votación</h1>
+      <p class="subtitle">Ingreso para actualización de datos</p>
+      <p class="meta">{{ fecha_generacion }} · {{ codigo_documento }}</p>
+    </div>
+
+    <div class="block">
+      <p class="block-title">Asamblea</p>
+      <p><strong>{{ asamblea_title }}</strong></p>
+      <p>Propósito: actualización de datos para votación.</p>
+    </div>
+
+    <div class="block instructions">
+      <p class="block-title">Instrucciones</p>
+      <ol>
+        <li>Escanee el código QR con la cámara de su celular.</li>
+        <li>Ingrese su número de torre y apartamento.</li>
+        <li>Actualice sus datos personales en el formulario.</li>
+      </ol>
+    </div>
+
+    <div class="qr-wrap">
+      <p class="qr-label">Código QR de acceso</p>
+      <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR de ingreso" />
+      <p class="url">{{ url_ingreso }}</p>
+    </div>
+
+    <p class="footer-note">
+      Documento generado automáticamente por Registros Votación. Válido para actualización de datos.
+    </p>
+
+  </div>
+</body>
+</html>

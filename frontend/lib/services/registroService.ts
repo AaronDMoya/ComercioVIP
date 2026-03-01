@@ -6,6 +6,7 @@ export interface Registro {
   cedula: string;
   nombre: string;
   telefono: string | null;
+  correo: string | null;
   numero_torre: string | null;
   numero_apartamento: string | null;
   numero_control: string | null;
@@ -88,7 +89,16 @@ export async function getRegistros(asambleaId: string): Promise<Registro[]> {
       return data;
     }
 
-    throw new Error(`Error al obtener registros: ${response.status}`);
+    let message = `Error al obtener registros: ${response.status}`;
+    try {
+      const body = await response.json();
+      if (body.detail && typeof body.detail === "string") {
+        message = body.detail;
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(message);
   } catch (error) {
     console.error("Error al obtener registros:", error);
     throw error;
@@ -214,27 +224,42 @@ export async function verificarPoder(
   }
 }
 
+/** Campos que se pueden actualizar en un registro */
+export interface RegistroUpdatePayload {
+  cedula?: string;
+  nombre?: string;
+  telefono?: string | null;
+  correo?: string | null;
+  numero_torre?: string | null;
+  numero_apartamento?: string | null;
+  numero_control?: string | null;
+  gestion_poderes?: Record<string, any> | null;
+  actividad_ingreso?: Record<string, any> | null;
+}
+
 /**
  * Actualiza un registro
- * 
+ *
  * @param registroId - ID del registro
- * @param gestion_poderes - Gestión de poderes (opcional)
- * @param actividad_ingreso - Actividad de ingresos (opcional)
- * @param numero_control - Número de control (opcional)
+ * @param payload - Campos a actualizar (solo se envían los definidos)
  * @returns Registro actualizado
  */
 export async function actualizarRegistro(
   registroId: string,
-  gestion_poderes?: Record<string, any> | null,
-  actividad_ingreso?: Record<string, any> | null,
-  numero_control?: string | null
+  payload: RegistroUpdatePayload
 ): Promise<Registro> {
   const endpoint = `/registros/${registroId}`;
 
-  const body: any = {};
-  if (gestion_poderes !== undefined) body.gestion_poderes = gestion_poderes;
-  if (actividad_ingreso !== undefined) body.actividad_ingreso = actividad_ingreso;
-  if (numero_control !== undefined) body.numero_control = numero_control;
+  const body: Record<string, unknown> = {};
+  if (payload.cedula !== undefined) body.cedula = payload.cedula;
+  if (payload.nombre !== undefined) body.nombre = payload.nombre;
+  if (payload.telefono !== undefined) body.telefono = payload.telefono;
+  if (payload.correo !== undefined) body.correo = payload.correo;
+  if (payload.numero_torre !== undefined) body.numero_torre = payload.numero_torre;
+  if (payload.numero_apartamento !== undefined) body.numero_apartamento = payload.numero_apartamento;
+  if (payload.numero_control !== undefined) body.numero_control = payload.numero_control;
+  if (payload.gestion_poderes !== undefined) body.gestion_poderes = payload.gestion_poderes;
+  if (payload.actividad_ingreso !== undefined) body.actividad_ingreso = payload.actividad_ingreso;
 
   try {
     const response = await apiFetch(endpoint, {

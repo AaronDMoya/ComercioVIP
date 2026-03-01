@@ -192,3 +192,76 @@ export async function deleteAsamblea(asambleaId: string): Promise<void> {
     throw error;
   }
 }
+
+export interface ReportarControlResponse {
+  enviados: number;
+  fallidos: number;
+  errores: string[];
+}
+
+/**
+ * Envía por correo el aviso de devolución de control a los registros seleccionados.
+ * Solo se envían a registros con correo; la asamblea debe estar en estado CERRADA.
+ *
+ * @param asambleaId - ID de la asamblea
+ * @param registroIds - IDs de los registros a los que enviar el reporte
+ * @returns Resultado con enviados, fallidos y lista de errores
+ */
+export async function sendReportesControl(
+  asambleaId: string,
+  registroIds: string[]
+): Promise<ReportarControlResponse> {
+  const endpoint = `/asambleas/${asambleaId}/reportar-control`;
+
+  const response = await apiFetch(endpoint, {
+    method: "POST",
+    body: JSON.stringify({ registro_ids: registroIds }),
+  });
+
+  if (!response.ok) {
+    let errorMessage = "Error al enviar reportes de control";
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.detail || errorMessage;
+    } catch {
+      errorMessage = `Error ${response.status}: ${response.statusText}`;
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data: ReportarControlResponse = await response.json();
+  return data;
+}
+
+/**
+ * Envía por correo el aviso para que los usuarios actualicen sus datos.
+ * El correo incluye un enlace único y QR a la página de actualización.
+ *
+ * @param asambleaId - ID de la asamblea
+ * @param registroIds - IDs de los registros a los que enviar el aviso
+ */
+export async function sendAvisoActualizarDatos(
+  asambleaId: string,
+  registroIds: string[]
+): Promise<ReportarControlResponse> {
+  const endpoint = `/asambleas/${asambleaId}/aviso-actualizar-datos`;
+
+  const response = await apiFetch(endpoint, {
+    method: "POST",
+    body: JSON.stringify({ registro_ids: registroIds }),
+  });
+
+  if (!response.ok) {
+    let errorMessage = "Error al enviar avisos de actualización";
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.detail || errorMessage;
+    } catch {
+      errorMessage = `Error ${response.status}: ${response.statusText}`;
+    }
+    throw new Error(errorMessage);
+  }
+
+  const data: ReportarControlResponse = await response.json();
+  return data;
+}

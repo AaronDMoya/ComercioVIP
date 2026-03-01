@@ -23,3 +23,11 @@ ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
 
 # Variables de configuración CORS
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+
+# SendGrid (correo electrónico)
+SENDGRID_KEY = os.getenv("SENDGRID_KEY")
+SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "noreply@comerciovip.com")
+SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "Registros Votación")
+
+# URL pública del frontend (para links en correos y QR)
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")

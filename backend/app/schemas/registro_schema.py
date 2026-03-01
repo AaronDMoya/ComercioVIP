@@ -10,6 +10,7 @@ class RegistroResponse(BaseModel):
     cedula: str
     nombre: str
     telefono: Optional[str]
+    correo: Optional[str]
     numero_torre: Optional[str]
     numero_apartamento: Optional[str]
     numero_control: Optional[str]
@@ -24,9 +25,15 @@ class RegistroResponse(BaseModel):
 
 # Esquema para actualizar registro
 class RegistroUpdate(BaseModel):
+    cedula: Optional[str] = None
+    nombre: Optional[str] = None
+    telefono: Optional[str] = None
+    correo: Optional[str] = None
+    numero_torre: Optional[str] = None
+    numero_apartamento: Optional[str] = None
+    numero_control: Optional[str] = None
     gestion_poderes: Optional[Dict[str, Any]] = None
     actividad_ingreso: Optional[Dict[str, Any]] = None
-    numero_control: Optional[str] = None
 
 # Esquema para buscar poderes (autocompletado)
 class PoderSearchParams(BaseModel):

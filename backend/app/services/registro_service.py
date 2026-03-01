@@ -127,10 +127,16 @@ def buscar_registro_con_poder_service(
 def update_registro_service(
     db: Session,
     registro_id: UUID,
+    cedula: Optional[str] = None,
+    nombre: Optional[str] = None,
+    telefono: Optional[str] = None,
+    correo: Optional[str] = None,
+    numero_torre: Optional[str] = None,
+    numero_apartamento: Optional[str] = None,
+    numero_control: Optional[str] = None,
+    set_numero_control_none: bool = False,
     gestion_poderes: Optional[Dict[str, Any]] = None,
     actividad_ingreso: Optional[Dict[str, Any]] = None,
-    numero_control: Optional[str] = None,
-    set_numero_control_none: bool = False
 ):
     registro = get_registro_by_id(db, registro_id)
     if not registro:
@@ -138,16 +144,22 @@ def update_registro_service(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Registro no encontrado"
         )
-    
+
     registro_actualizado = update_registro(
         db=db,
         registro_id=registro_id,
+        cedula=cedula,
+        nombre=nombre,
+        telefono=telefono,
+        correo=correo,
+        numero_torre=numero_torre,
+        numero_apartamento=numero_apartamento,
+        numero_control=numero_control,
+        _numero_control_set_none=set_numero_control_none,
         gestion_poderes=gestion_poderes,
         actividad_ingreso=actividad_ingreso,
-        numero_control=numero_control,
-        _numero_control_set_none=set_numero_control_none
     )
-    
+
     return registro_actualizado
 
 # Servicio para transferir un poder de un registro a otro

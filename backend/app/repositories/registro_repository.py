@@ -3,7 +3,7 @@ from sqlalchemy import or_, and_
 from app.models.asamblea_model import AsambleaRegistro
 from uuid import UUID
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 
 # Obtener todos los registros de una asamblea
@@ -44,6 +44,103 @@ def search_registros(
 # Obtener un registro por ID
 def get_registro_by_id(db: Session, registro_id: UUID):
     return db.query(AsambleaRegistro).filter(AsambleaRegistro.id == registro_id).first()
+
+
+# Obtener registros por IDs que pertenecen a una asamblea (para reportar control)
+def get_registros_by_ids_and_asamblea(db: Session, asamblea_id: UUID, registro_ids: List[UUID]):
+    if not registro_ids:
+        return []
+    return (
+        db.query(AsambleaRegistro)
+        .filter(
+            AsambleaRegistro.asamblea_id == asamblea_id,
+            AsambleaRegistro.id.in_(registro_ids),
+        )
+        .all()
+    )
+
+
+# Obtener registro por token de actualización (para página pública actualizar datos)
+def get_registro_by_token(db: Session, token: str):
+    if not token or not token.strip():
+        return None
+    return (
+        db.query(AsambleaRegistro)
+        .filter(AsambleaRegistro.token_actualizacion == token.strip())
+        .first()
+    )
+
+
+def _registro_coincide_torre_apt(registro: AsambleaRegistro, torre: str, apt: str) -> bool:
+    """True si el registro coincide por torre y apartamento (campos principales o poder_1)."""
+    t = (torre or "").strip()
+    a = (apt or "").strip()
+    if not t and not a:
+        return False
+    if (registro.numero_torre or "").strip() == t and (registro.numero_apartamento or "").strip() == a:
+        return True
+    gp = registro.gestion_poderes
+    if gp and isinstance(gp, dict):
+        p1 = gp.get("poder_1") if isinstance(gp.get("poder_1"), dict) else None
+        if p1:
+            if (p1.get("torre") or "").strip() == t and (p1.get("apartamento") or "").strip() == a:
+                return True
+    return False
+
+
+# Buscar registro por asamblea + torre + apartamento (para ingreso sin contraseña)
+def get_registro_by_asamblea_torre_apt(
+    db: Session, asamblea_id: UUID, numero_torre: str, numero_apartamento: str
+):
+    registros = get_registros_by_asamblea(db, asamblea_id)
+    torre = (numero_torre or "").strip()
+    apt = (numero_apartamento or "").strip()
+    for reg in registros:
+        if _registro_coincide_torre_apt(reg, torre, apt):
+            return reg
+    return None
+
+
+# Generar y guardar token de actualización para un registro (único por registro)
+def ensure_token_actualizacion(db: Session, registro_id: UUID) -> Optional[str]:
+    import uuid as uuid_module
+    registro = get_registro_by_id(db, registro_id)
+    if not registro:
+        return None
+    if registro.token_actualizacion:
+        return registro.token_actualizacion
+    token = str(uuid_module.uuid4())
+    registro.token_actualizacion = token
+    registro.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(registro)
+    return token
+
+
+# Actualizar solo datos permitidos por token (cedula, nombre, telefono, correo)
+def update_registro_by_token(
+    db: Session,
+    token: str,
+    cedula: Optional[str] = None,
+    nombre: Optional[str] = None,
+    telefono: Optional[str] = None,
+    correo: Optional[str] = None,
+):
+    registro = get_registro_by_token(db, token)
+    if not registro:
+        return None
+    if cedula is not None:
+        registro.cedula = cedula
+    if nombre is not None:
+        registro.nombre = nombre
+    if telefono is not None:
+        registro.telefono = telefono
+    if correo is not None:
+        registro.correo = correo
+    registro.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(registro)
+    return registro
 
 # Buscar registros para autocompletado de poderes
 def buscar_registros_para_poderes(
@@ -154,10 +251,16 @@ def buscar_dueno_original_poder(
 def update_registro(
     db: Session,
     registro_id: UUID,
+    cedula: Optional[str] = None,
+    nombre: Optional[str] = None,
+    telefono: Optional[str] = None,
+    correo: Optional[str] = None,
+    numero_torre: Optional[str] = None,
+    numero_apartamento: Optional[str] = None,
+    numero_control: Optional[str] = None,
+    _numero_control_set_none: bool = False,
     gestion_poderes: Optional[dict] = None,
     actividad_ingreso: Optional[dict] = None,
-    numero_control: Optional[str] = None,
-    _numero_control_set_none: bool = False
 ):
     """
     Actualiza un registro.
@@ -166,7 +269,20 @@ def update_registro(
     registro = get_registro_by_id(db, registro_id)
     if not registro:
         return None
-    
+
+    if cedula is not None:
+        registro.cedula = cedula
+    if nombre is not None:
+        registro.nombre = nombre
+    if telefono is not None:
+        registro.telefono = telefono
+    if correo is not None:
+        registro.correo = correo
+    if numero_torre is not None:
+        registro.numero_torre = numero_torre
+    if numero_apartamento is not None:
+        registro.numero_apartamento = numero_apartamento
+
     if gestion_poderes is not None:
         # Asegurar que siempre haya al menos poder_1, aunque esté vacío
         if not gestion_poderes or len(gestion_poderes) == 0:
