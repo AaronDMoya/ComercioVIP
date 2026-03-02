@@ -63,8 +63,14 @@ export default function LoginForm() {
             
             if (result.success) {
                 toast.success("Ingreso exitoso");
-                // Esperar a que el contexto se actualice antes de redirigir
-                // El useEffect se encargará de la redirección cuando user cambie
+                // Redirigir de inmediato con el usuario devuelto por el login
+                if (result.user) {
+                    if (result.user.is_admin) {
+                        router.push("/administrador/gestion-asambleas");
+                    } else {
+                        router.push("/operarios/panel");
+                    }
+                }
             } else {
                 // Mostrar el mensaje de error específico
                 toast.error(result.error || "Usuario o contraseña incorrectos");

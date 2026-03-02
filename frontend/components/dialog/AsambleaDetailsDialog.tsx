@@ -224,6 +224,47 @@ export function AsambleaDetailsDialog({
     return null;
   };
 
+  // Coeficiente total del registro: propio + suma de coeficientes de los poderes (igual que en dataPerson)
+  const obtenerCoeficienteTotalRegistro = (registro: Registro): number => {
+    const base = typeof registro.coeficiente === "number" && !isNaN(registro.coeficiente)
+      ? registro.coeficiente
+      : 0;
+    let total = base;
+
+    const torreActual = (registro.numero_torre || "").trim().toLowerCase();
+    const apartamentoActual = (registro.numero_apartamento || "").trim().toLowerCase();
+
+    if (!registro.gestion_poderes || typeof registro.gestion_poderes !== "object") {
+      return total;
+    }
+
+    const poderes = registro.gestion_poderes;
+    for (const key of Object.keys(poderes)) {
+      const poder = poderes[key];
+      if (!poder || typeof poder !== "object") continue;
+
+      const torrePoder = (poder.torre || poder.numero_torre || "").trim();
+      const apartamentoPoder = (poder.apartamento || poder.numero_apartamento || "").trim();
+      if (!torrePoder && !apartamentoPoder) continue;
+
+      const esPoderPropio =
+        torrePoder.toLowerCase() === torreActual &&
+        apartamentoPoder.toLowerCase() === apartamentoActual;
+      if (esPoderPropio) continue;
+
+      const duenoOriginal = registros.find((r) => {
+        const rTorre = (r.numero_torre || "").trim().toLowerCase();
+        const rApartamento = (r.numero_apartamento || "").trim().toLowerCase();
+        return rTorre === torrePoder.toLowerCase() && rApartamento === apartamentoPoder.toLowerCase();
+      });
+      if (duenoOriginal && duenoOriginal.coeficiente != null && !isNaN(Number(duenoOriginal.coeficiente))) {
+        total += Number(duenoOriginal.coeficiente);
+      }
+    }
+
+    return total;
+  };
+
   // Exportar a XLS para sistema de controles
   const handleExportCSV = () => {
     if (registros.length === 0) {
@@ -273,15 +314,13 @@ export function AsambleaDetailsDialog({
       if (registro.numero_control) {
         if (!nombresUsados.has(nombre)) {
           nombresUsados.add(nombre);
-          const coeficiente = obtenerCoeficienteControl(registro, registro.numero_control);
-          if (coeficiente !== null) {
-            registrosExportar.push({
-              idNo: idCounter++,
-              name: nombre,
-              groupNo: registro.numero_control,
-              weight: coeficiente,
-            });
-          }
+          const weight = obtenerCoeficienteTotalRegistro(registro);
+          registrosExportar.push({
+            idNo: idCounter++,
+            name: nombre,
+            groupNo: registro.numero_control,
+            weight,
+          });
         }
       }
 
@@ -291,20 +330,16 @@ export function AsambleaDetailsDialog({
         for (const poderKey in poderes) {
           const poder = poderes[poderKey];
           if (poder && typeof poder === "object" && poder.numero_control) {
-            // Solo agregar si el nombre no ha sido usado
             if (!nombresUsados.has(nombre)) {
               nombresUsados.add(nombre);
-              const coeficiente = obtenerCoeficienteControl(registro, poder.numero_control);
-              if (coeficiente !== null) {
-                registrosExportar.push({
-                  idNo: idCounter++,
-                  name: nombre,
-                  groupNo: poder.numero_control,
-                  weight: coeficiente,
-                });
-                // Salir del loop de poderes una vez que encontramos uno válido para este nombre
-                break;
-              }
+              const weight = obtenerCoeficienteTotalRegistro(registro);
+              registrosExportar.push({
+                idNo: idCounter++,
+                name: nombre,
+                groupNo: poder.numero_control,
+                weight,
+              });
+              break;
             }
           }
         }
@@ -372,8 +407,38 @@ export function AsambleaDetailsDialog({
     return horas * 60 + minutos;
   };
 
+  // Convierte fecha_final (ISO) a hora en formato "H:MMAM" / "H:MMPM" para el reporte
+  const formatFechaFinalAsHora = (fechaFinal: string | null): string => {
+    if (!fechaFinal) return "";
+    try {
+      const d = new Date(fechaFinal);
+      const h = d.getHours();
+      const m = d.getMinutes();
+      const periodo = h >= 12 ? "PM" : "AM";
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      return `${h12}:${m.toString().padStart(2, "0")}${periodo}`;
+    } catch {
+      return "";
+    }
+  };
+
+  // Convierte fecha_final (ISO) a minutos desde medianoche (para calcular tiempo presente)
+  const fechaFinalToMinutos = (fechaFinal: string | null): number | null => {
+    if (!fechaFinal) return null;
+    try {
+      const d = new Date(fechaFinal);
+      return d.getHours() * 60 + d.getMinutes();
+    } catch {
+      return null;
+    }
+  };
+
   // Función para calcular tiempo presente en minutos
-  const calcularTiempoPresente = (actividadIngreso: Record<string, any> | null): number => {
+  // Si hay ingreso/reingreso sin salida y se pasa fechaFinalAsamblea, se cuenta hasta esa hora
+  const calcularTiempoPresente = (
+    actividadIngreso: Record<string, any> | null,
+    fechaFinalAsamblea?: string | null
+  ): number => {
     if (!actividadIngreso || typeof actividadIngreso !== "object") {
       return 0;
     }
@@ -381,7 +446,6 @@ export function AsambleaDetailsDialog({
     let tiempoTotal = 0;
     let horaEntrada: number | null = null;
 
-    // Ordenar actividades por número (actividad_1, actividad_2, etc.)
     const actividades = Object.keys(actividadIngreso)
       .filter((key) => key.startsWith("actividad_"))
       .sort((a, b) => {
@@ -402,20 +466,20 @@ export function AsambleaDetailsDialog({
       const minutos = horaAMinutos(hora);
 
       if (tipo === "ingreso" || tipo === "reingreso") {
-        // Si ya había una entrada previa sin salida, no contar ese tiempo
-        if (horaEntrada !== null) {
-          // No contar tiempo si no hubo salida
-        }
         horaEntrada = minutos;
       } else if (tipo === "salida" && horaEntrada !== null) {
-        // Calcular tiempo entre entrada y salida
         tiempoTotal += minutos - horaEntrada;
         horaEntrada = null;
       }
     }
 
-    // Si quedó una entrada sin salida, no contar ese tiempo (aún está presente)
-    // O podrías contar hasta el final del día si prefieres
+    // Si quedó una entrada sin salida y tenemos hora de fin de asamblea, contar hasta esa hora
+    if (horaEntrada !== null && fechaFinalAsamblea) {
+      const minsFin = fechaFinalToMinutos(fechaFinalAsamblea);
+      if (minsFin !== null && minsFin >= horaEntrada) {
+        tiempoTotal += minsFin - horaEntrada;
+      }
+    }
 
     return tiempoTotal;
   };
@@ -456,15 +520,24 @@ export function AsambleaDetailsDialog({
     return primera?.hora ?? "";
   };
 
-  // Última hora de salida
-  const getHoraSalida = (actividadIngreso: Record<string, any> | null): string => {
+  // Última hora de salida; si no hay salida y la persona sí ingresó, se usa fin de asamblea. Si no ingresó, vacío.
+  const getHoraSalida = (
+    actividadIngreso: Record<string, any> | null,
+    fechaFinalAsamblea?: string | null
+  ): string => {
     const actividades = getActividadesOrdenadas(actividadIngreso);
+    const tuvoIngreso = actividades.some((a) => a.tipo === "ingreso" || a.tipo === "reingreso");
+    if (!tuvoIngreso) return "";
+
     let ultima = "";
     for (let i = actividades.length - 1; i >= 0; i--) {
       if (actividades[i].tipo === "salida") {
         ultima = actividades[i].hora;
         break;
       }
+    }
+    if (!ultima && fechaFinalAsamblea) {
+      ultima = formatFechaFinalAsHora(fechaFinalAsamblea);
     }
     return ultima;
   };
@@ -549,8 +622,9 @@ export function AsambleaDetailsDialog({
         "Total de tiempo presente",
       ];
 
+      const fechaFinalAsamblea = asamblea.fecha_final ?? null;
       const datos = registros.map((registro) => {
-        const tiempoPresente = calcularTiempoPresente(registro.actividad_ingreso);
+        const tiempoPresente = calcularTiempoPresente(registro.actividad_ingreso, fechaFinalAsamblea);
         const asistencia = getAsistenciaAsamblea(registro.actividad_ingreso);
         const poderes = tienePoderesAdicionales(registro.gestion_poderes) ? "Si" : "No";
         return [
@@ -565,7 +639,7 @@ export function AsambleaDetailsDialog({
           registro.numero_control || "",
           "",
           getHoraIngreso(registro.actividad_ingreso),
-          getHoraSalida(registro.actividad_ingreso),
+          getHoraSalida(registro.actividad_ingreso, fechaFinalAsamblea),
           formatearTiempo(tiempoPresente),
         ];
       });
@@ -599,14 +673,16 @@ export function AsambleaDetailsDialog({
 
       const ws = XLSX.utils.aoa_to_sheet(aoa);
 
-      // Aplicar estilo azul oscuro a la fila 3 (encabezados de columna)
-      const headerRow = 3; // 1-based Excel row
+      // Aplicar estilo azul oscuro a la fila 1 (etiquetas: Quorum presente, Quorum final, etc.)
+      for (let c = 0; c < 8; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 0, c });
+        if (ws[cellRef]) (ws[cellRef] as any).s = headerCellStyle;
+      }
+      // Aplicar estilo azul oscuro a la fila 3 (encabezados de columna de la tabla)
+      const headerRow = 3;
       for (let c = 0; c < colHeaders.length; c++) {
         const cellRef = XLSX.utils.encode_cell({ r: headerRow - 1, c });
-        const cell = ws[cellRef];
-        if (cell) {
-          (ws[cellRef] as any).s = headerCellStyle;
-        }
+        if (ws[cellRef]) (ws[cellRef] as any).s = headerCellStyle;
       }
 
       const colWidths = [
@@ -632,7 +708,7 @@ export function AsambleaDetailsDialog({
       const totalRegistros = registros.length;
       const totalCoeficiente = registros.reduce((sum, r) => sum + (r.coeficiente || 0), 0);
       const totalTiempoPresente = registros.reduce(
-        (sum, r) => sum + calcularTiempoPresente(r.actividad_ingreso),
+        (sum, r) => sum + calcularTiempoPresente(r.actividad_ingreso, fechaFinalAsamblea),
         0
       );
       const registrosConControl = registros.filter((r) => r.numero_control).length;
@@ -1105,13 +1181,6 @@ export function AsambleaDetailsDialog({
                 <TabsTrigger value="exportar">Exportar</TabsTrigger>
                 <TabsTrigger value="aviso">Avisar actualizar</TabsTrigger>
                 <TabsTrigger
-                  value="pdfqr"
-                  disabled={asamblea.estado === "CERRADA"}
-                  className={asamblea.estado === "CERRADA" ? "opacity-50 cursor-not-allowed" : ""}
-                >
-                  PDF QR ingreso
-                </TabsTrigger>
-                <TabsTrigger
                   value="reportar"
                   disabled={asamblea.estado !== "CERRADA"}
                   className={asamblea.estado !== "CERRADA" ? "opacity-50 cursor-not-allowed" : ""}
@@ -1334,6 +1403,51 @@ export function AsambleaDetailsDialog({
                         </Button>
                       </div>
                     </div>
+
+                    {/* Card PDF QR ingreso */}
+                    <div className={`p-6 rounded-lg border transition-colors ${
+                      asamblea.estado !== "CERRADA"
+                        ? "bg-white border-gray-200 hover:border-blue-300"
+                        : "bg-gray-50 border-gray-200 opacity-60"
+                    }`}>
+                      <div className="flex flex-col gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-3 rounded-lg ${
+                            asamblea.estado !== "CERRADA"
+                              ? "bg-blue-50"
+                              : "bg-gray-100"
+                          }`}>
+                            <FileText className={`w-6 h-6 ${
+                              asamblea.estado !== "CERRADA"
+                                ? "text-blue-600"
+                                : "text-gray-400"
+                            }`} />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-lg font-semibold text-gray-900">Exportar PDF con QR</h4>
+                            <p className="text-sm text-gray-500">QR de ingreso (torre y apartamento)</p>
+                            {asamblea.estado === "CERRADA" && (
+                              <p className="text-xs text-amber-600 mt-1">
+                                Solo disponible cuando la asamblea no esté finalizada
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          onClick={handleGenerarPdfIngreso}
+                          disabled={isGeneratingPdf || asamblea.estado === "CERRADA"}
+                          variant="outline"
+                          className="w-full gap-2"
+                        >
+                          {isGeneratingPdf ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <FileText className="w-4 h-4" />
+                          )}
+                          {isGeneratingPdf ? "Generando…" : "Descargar PDF con QR"}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </TabsContent>
@@ -1341,41 +1455,6 @@ export function AsambleaDetailsDialog({
               {/* Pestaña: Avisar actualizar datos */}
               <TabsContent value="aviso" className="space-y-4 mt-6">
                 {renderAvisarActualizarTab()}
-              </TabsContent>
-              {/* Pestaña: PDF con QR de ingreso (solo si asamblea no finalizada) */}
-              <TabsContent value="pdfqr" className="space-y-4 mt-6">
-                <div className="space-y-4">
-                  <h3 className="text-xl font-semibold text-gray-900 border-b pb-2">
-                    Generar PDF con QR de ingreso
-                  </h3>
-                  {asamblea.estado === "CERRADA" ? (
-                    <p className="text-gray-500 py-4">
-                      Esta opción solo está disponible cuando la asamblea no está finalizada. El QR
-                      dirige a la página de ingreso con torre y apartamento.
-                    </p>
-                  ) : (
-                    <>
-                      <p className="text-gray-600 text-sm">
-                        Genera un PDF con un código QR único para esta asamblea. Al escanearlo, los
-                        usuarios llegarán a la página de ingreso donde deberán ingresar su número
-                        de torre y apartamento.
-                      </p>
-                      <Button
-                        onClick={handleGenerarPdfIngreso}
-                        disabled={isGeneratingPdf}
-                        variant="outline"
-                        className="gap-2"
-                      >
-                        {isGeneratingPdf ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <FileText className="w-4 h-4" />
-                        )}
-                        {isGeneratingPdf ? "Generando…" : "Descargar PDF con QR"}
-                      </Button>
-                    </>
-                  )}
-                </div>
               </TabsContent>
               {/* Pestaña: Reportar Control */}
               <TabsContent value="reportar" className="space-y-4 mt-6">

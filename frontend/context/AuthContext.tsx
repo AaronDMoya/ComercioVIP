@@ -103,7 +103,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
 
             if (response.ok) {
-                // Si el login fue exitoso, carga los datos del usuario
+                // Si el login fue exitoso, cargar datos del usuario y devolverlos para redirigir
+                const meResponse = await apiFetch("/auth/me");
+                if (meResponse.ok) {
+                    const userData = await meResponse.json();
+                    setUser(userData);
+                    return { success: true, user: userData };
+                }
                 await loadUser();
                 return { success: true };
             }

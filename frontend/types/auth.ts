@@ -19,6 +19,7 @@ export type User = {
 export type LoginResult = {
     success: boolean;
     error?: string;  // Mensaje de error específico
+    user?: User;     // Usuario cuando success (para redirigir según rol)
 };
 
 /**
