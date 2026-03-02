@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 import { Loader2, Scale } from "lucide-react";
 
-export default function ActualizarPage() {
+function ActualizarContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
@@ -184,5 +184,19 @@ export default function ActualizarPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function ActualizarPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen w-full flex items-center justify-center bg-gray-200">
+          <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+        </div>
+      }
+    >
+      <ActualizarContent />
+    </Suspense>
   );
 }

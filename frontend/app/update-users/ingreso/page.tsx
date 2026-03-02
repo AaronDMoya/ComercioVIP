@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { ingreso } from "@/lib/services/updateUsersService";
 import { toast } from "sonner";
 import { Loader2, Scale } from "lucide-react";
 
-export default function IngresoPage() {
+function IngresoContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const asambleaId = searchParams.get("asamblea") ?? "";
@@ -148,5 +148,19 @@ export default function IngresoPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function IngresoPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen w-full flex items-center justify-center bg-gray-200">
+          <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
+        </div>
+      }
+    >
+      <IngresoContent />
+    </Suspense>
   );
 }
