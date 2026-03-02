@@ -29,5 +29,5 @@ SENDGRID_KEY = os.getenv("SENDGRID_KEY")
 SENDGRID_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL", "noreply@comerciovip.com")
 SENDGRID_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "Registros Votación")
 
-# URL pública del frontend (para links en correos y QR)
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+# URL pública del frontend (para links en correos y QR; en local usar FRONTEND_URL=http://localhost:3000)
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://comerciovip.com").rstrip("/")
