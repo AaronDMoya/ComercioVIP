@@ -88,6 +88,8 @@ def get_registro_public(
         nombre=registro.nombre or "",
         telefono=registro.telefono,
         correo=registro.correo,
+        numero_torre=registro.numero_torre,
+        numero_apartamento=registro.numero_apartamento,
     )
 
 
@@ -120,4 +122,6 @@ def actualizar_registro_public(data: RegistroActualizarRequest, db: Session = De
         nombre=registro.nombre or "",
         telefono=registro.telefono,
         correo=registro.correo,
+        numero_torre=registro.numero_torre,
+        numero_apartamento=registro.numero_apartamento,
     )

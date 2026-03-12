@@ -23,6 +23,8 @@ class RegistroPublicResponse(BaseModel):
     nombre: str
     telefono: Optional[str]
     correo: Optional[str]
+    numero_torre: Optional[str]
+    numero_apartamento: Optional[str]
 
 
 class RegistroActualizarRequest(BaseModel):

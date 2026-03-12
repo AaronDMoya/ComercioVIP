@@ -3,8 +3,14 @@ from jose import JWTError
 from app.core.security import decode_token
 
 # Función para obtener el usuario actual
+# Acepta el token desde el header Authorization (Bearer) o desde la cookie (mismo origen)
 def get_current_user(request: Request):
-    token = request.cookies.get("access_token")
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1]
+    if not token:
+        token = request.cookies.get("access_token")
 
     if not token:
         raise HTTPException(

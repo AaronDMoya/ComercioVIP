@@ -51,6 +51,7 @@ def login(data_user: UserLogin, response: Response, db: Session = Depends(get_db
 
     return {
         "message": "Login successful",
+        "access_token": token,
         "user": {
             "id": str(user.id),
             "name": user.name,
