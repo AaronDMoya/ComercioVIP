@@ -2,6 +2,24 @@
 // En Next.js, las variables de entorno del cliente deben comenzar con NEXT_PUBLIC_
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://comerciovip.com/api";
 
+const AUTH_TOKEN_KEY = "access_token";
+
+/** Guarda el token para enviarlo en el header Authorization (funciona en cross-origin) */
+export function setAuthToken(token: string | null) {
+    if (typeof window === "undefined") return;
+    if (token) {
+        window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+    } else {
+        window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+}
+
+/** Obtiene el token guardado (solo en cliente) */
+export function getAuthToken(): string | null {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
 /**
  * Función helper para realizar peticiones HTTP a la API
  * 
@@ -23,16 +41,20 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
 
     const fullUrl = `${API_URL}${endpoint}`;
 
+    const token = getAuthToken();
+    const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(options.headers as Record<string, string> || {}),
+    };
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+
     try {
         const res = await fetch(fullUrl, {
-            // credentials: "include" permite enviar cookies automáticamente
-            // Esto es necesario para mantener la sesión del usuario
+            // credentials: "include" permite enviar cookies (mismo origen)
             credentials: "include",
-            headers: {
-                "Content-Type": "application/json",
-                // Permite agregar headers adicionales o sobrescribir los existentes
-                ...(options.headers || {}),
-            },
+            headers,
             // Spread de options permite pasar method, body, etc.
             ...options,
         });

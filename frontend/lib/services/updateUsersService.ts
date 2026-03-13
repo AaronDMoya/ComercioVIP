@@ -12,6 +12,8 @@ export interface RegistroPublicResponse {
   nombre: string;
   telefono: string | null;
   correo: string | null;
+  numero_torre?: string | null;
+  numero_apartamento?: string | null;
 }
 
 /**

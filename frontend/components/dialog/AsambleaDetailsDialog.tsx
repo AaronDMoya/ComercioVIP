@@ -559,6 +559,41 @@ export function AsambleaDetailsDialog({
     });
   };
 
+  /** True si la persona cedió su poder (no asistió y otro registro tiene su torre+apartamento en sus poderes). */
+  const cedioPoder = (registro: Registro, todosRegistros: Registro[]): boolean => {
+    if (getAsistenciaAsamblea(registro.actividad_ingreso) === "Si") return false;
+    return getNombreRepresentante(registro, todosRegistros).length > 0;
+  };
+
+  /**
+   * Nombre de quien representa o asistió: si la persona asistió, es su propio nombre;
+   * si no asistió y transfirió su poder, es el nombre del registro que tiene ese poder (torre+apartamento).
+   */
+  const getNombreRepresentante = (registro: Registro, todosRegistros: Registro[]): string => {
+    if (getAsistenciaAsamblea(registro.actividad_ingreso) === "Si") {
+      return "";
+    }
+    const torrePersona = (registro.numero_torre || "").trim().toLowerCase();
+    const aptoPersona = (registro.numero_apartamento || "").trim().toLowerCase();
+    if (!torrePersona && !aptoPersona) return "";
+
+    for (const otro of todosRegistros) {
+      if (otro.id === registro.id) continue;
+      if (!otro.gestion_poderes || typeof otro.gestion_poderes !== "object") continue;
+      const poderes = otro.gestion_poderes;
+      for (const key of Object.keys(poderes)) {
+        const p = poderes[key];
+        if (!p || typeof p !== "object") continue;
+        const poderTorre = (p.torre || p.numero_torre || "").trim().toLowerCase();
+        const poderApto = (p.apartamento || p.numero_apartamento || "").trim().toLowerCase();
+        if (poderTorre === torrePersona && poderApto === aptoPersona) {
+          return otro.nombre;
+        }
+      }
+    }
+    return "";
+  };
+
   // Estilo azul oscuro para encabezados de columna (xlsx-js-style)
   const headerCellStyle = {
     fill: { fgColor: { rgb: "1E3A5F" }, patternType: "solid" },
@@ -626,13 +661,14 @@ export function AsambleaDetailsDialog({
       const datos = registros.map((registro) => {
         const tiempoPresente = calcularTiempoPresente(registro.actividad_ingreso, fechaFinalAsamblea);
         const asistencia = getAsistenciaAsamblea(registro.actividad_ingreso);
-        const poderes = tienePoderesAdicionales(registro.gestion_poderes) ? "Si" : "No";
+        const poderes = cedioPoder(registro, registros) ? "Cedió poder" : "Propietario";
+        const nombreRepresentante = getNombreRepresentante(registro, registros);
         return [
           asistencia,
           registro.numero_torre || "",
           registro.numero_apartamento || "",
           registro.nombre,
-          registro.nombre,
+          nombreRepresentante,
           poderes,
           registro.coeficiente ?? "",
           registro.cedula,

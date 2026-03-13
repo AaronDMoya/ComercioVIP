@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect } from "react";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, setAuthToken } from "@/lib/api";
 import type { User, LoginResult, AuthContextType } from "@/types/auth";
 
 // Crear el contexto de autenticación
@@ -103,10 +103,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
 
             if (response.ok) {
-                // Si el login fue exitoso, cargar datos del usuario y devolverlos para redirigir
-                const meResponse = await apiFetch("/auth/me");
-                if (meResponse.ok) {
-                    const userData = await meResponse.json();
+                const data = await response.json();
+                const token = data.access_token;
+                const userFromLogin = data.user;
+                if (token) {
+                    setAuthToken(token);
+                }
+                // Normalizar usuario: el login devuelve "id", el tipo User usa "sub"
+                if (userFromLogin) {
+                    const userData: User = {
+                        ...userFromLogin,
+                        sub: userFromLogin.id ?? userFromLogin.sub,
+                    };
                     setUser(userData);
                     return { success: true, user: userData };
                 }
@@ -157,8 +165,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
      * y limpia el estado del usuario localmente
      */
     async function logout() {
-        const response = await apiFetch("/auth/logout", { method: "POST" });
-        // Limpia el estado del usuario independientemente de la respuesta
+        setAuthToken(null);
+        await apiFetch("/auth/logout", { method: "POST" });
         setUser(null);
     }
 

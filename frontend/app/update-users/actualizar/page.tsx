@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FieldLabel } from "@/components/ui/field";
@@ -12,8 +12,17 @@ import {
 } from "@/lib/services/updateUsersService";
 import { toast } from "sonner";
 import { Loader2, Scale } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function ActualizarContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
 
@@ -25,6 +34,10 @@ function ActualizarContent() {
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
   const [correo, setCorreo] = useState("");
+  const [showPasswordDialog, setShowPasswordDialog] = useState(true);
+  const [passwordValidated, setPasswordValidated] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [validandoPassword, setValidandoPassword] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -34,10 +47,7 @@ function ActualizarContent() {
     getRegistroByToken(token)
       .then((data) => {
         setRegistro(data);
-        setCedula(data.cedula || "");
-        setNombre(data.nombre || "");
-        setTelefono(data.telefono || "");
-        setCorreo(data.correo || "");
+        // No prellenar los campos: la persona actualiza sin ver sus datos actuales
       })
       .catch((err: unknown) => {
         const e = err as Error & { status?: number };
@@ -50,9 +60,37 @@ function ActualizarContent() {
       .finally(() => setLoading(false));
   }, [token]);
 
+  const expectedPassword = registro
+    ? `${(registro.cedula || "").trim()}${(registro.numero_torre || "").trim()}${(registro.numero_apartamento || "").trim()}`
+    : "";
+
+  const handleValidatePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!registro) {
+      return;
+    }
+    setValidandoPassword(true);
+    try {
+      const input = passwordInput.trim();
+      if (input === expectedPassword) {
+        setPasswordValidated(true);
+        setShowPasswordDialog(false);
+        toast.success("Contraseña correcta. Puede actualizar sus datos.");
+      } else {
+        toast.error("Contraseña incorrecta. Verifique sus datos e inténtelo nuevamente.");
+      }
+    } finally {
+      setValidandoPassword(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token) return;
+    if (!passwordValidated) {
+      toast.error("Debe validar la contraseña antes de actualizar los datos.");
+      return;
+    }
     setSaving(true);
     try {
       await actualizarRegistroByToken(token, {
@@ -61,7 +99,7 @@ function ActualizarContent() {
         telefono: telefono.trim() || undefined,
         correo: correo.trim() || undefined,
       });
-      toast.success("Datos actualizados correctamente.");
+      router.push("/update-users/actualizado");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al guardar");
     } finally {
@@ -123,6 +161,68 @@ function ActualizarContent() {
     );
   }
 
+  // Mientras no haya validado la contraseña, solo mostramos el diálogo (no el formulario)
+  if (showPasswordDialog) {
+    return (
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gray-200 bg-[linear-gradient(rgba(255,255,255,0.18)_3px,transparent_3px),linear-gradient(90deg,rgba(255,255,255,0.18)_3px,transparent_3px)] bg-[size:60px_60px] p-4">
+        <div className="absolute top-4 left-4 bg-white rounded-lg p-2 flex gap-2 shadow-md">
+          <Scale className="w-6 h-6 text-blue-600" />
+          <span className="text-lg font-semibold">Registros Votación</span>
+        </div>
+        <Dialog
+          open={true}
+          onOpenChange={(open) => {
+            if (!open) {
+              window.location.assign("/update-users/ingreso");
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
+            <DialogHeader>
+              <DialogTitle>Verificación de acceso</DialogTitle>
+              <DialogDescription>
+                Para acceder a la actualización de datos, ingrese la contraseña asignada.
+                <br />
+                La contraseña es: <strong>cédula + número de torre + número de apartamento</strong> (todo junto, sin espacios).
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleValidatePassword} className="space-y-4">
+              <div>
+                <FieldLabel className="mb-1">Contraseña</FieldLabel>
+                <Input
+                  type="password"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  autoComplete="off"
+                  placeholder="Ej: 1234567891101"
+                  required
+                />
+              </div>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => window.location.assign("/update-users/ingreso")}
+                  disabled={validandoPassword}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit" disabled={validandoPassword}>
+                  {validandoPassword ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Validar contraseña"
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  }
+
+  // Contraseña validada: mostramos el formulario de actualización
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gray-200 bg-[linear-gradient(rgba(255,255,255,0.18)_3px,transparent_3px),linear-gradient(90deg,rgba(255,255,255,0.18)_3px,transparent_3px)] bg-[size:60px_60px] p-4">
       <div className="absolute top-4 left-4 bg-white rounded-lg p-2 flex gap-2 shadow-md">

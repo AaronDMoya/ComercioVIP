@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { FieldLabel } from "@/components/ui/field"
 import { Separator } from "@/components/ui/separator"
-import { FileSpreadsheet, ChevronRight, ChevronLeft, Check, Upload, X, Loader2 } from "lucide-react"
+import { FileSpreadsheet, ChevronRight, ChevronLeft, Check, Upload, X, Loader2, Download } from "lucide-react"
 import { toast } from "sonner"
 import { Switch } from "@/components/ui/switch"
 import { apiFetch } from "@/lib/api"
@@ -163,6 +163,33 @@ export function CreateAsambleaDialog({ trigger, onAsambleaCreated }: CreateAsamb
       ...excelData,
       rows: [...excelData.rows, newRow],
     });
+  };
+
+  // Columnas de la plantilla vacía (mismas que espera mapExcelDataToRegistros)
+  const TEMPLATE_HEADERS = [
+    "Cedula",
+    "Nombre",
+    "Telefono",
+    "Correo Electronico",
+    "N° Torre",
+    "N° Apartamento",
+    "N° Control",
+    "Coeficiente",
+  ];
+
+  // Descargar plantilla Excel vacía con las columnas esperadas
+  const handleDownloadTemplate = () => {
+    try {
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([TEMPLATE_HEADERS]);
+      ws["!cols"] = TEMPLATE_HEADERS.map(() => ({ wch: 18 }));
+      XLSX.utils.book_append_sheet(wb, ws, "Registros");
+      XLSX.writeFile(wb, "plantilla_registros_asamblea.xlsx");
+      toast.success("Plantilla descargada");
+    } catch (error) {
+      console.error("Error al generar plantilla:", error);
+      toast.error("Error al descargar la plantilla");
+    }
   };
 
   // Función para eliminar el archivo
@@ -444,7 +471,34 @@ export function CreateAsambleaDialog({ trigger, onAsambleaCreated }: CreateAsamb
 
           {/* Paso 2: Cargar Archivo Excel */}
           {currentStep === 2 && (
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Bloque: Descargar plantilla */}
+              <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 sm:p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                      <Download className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">Plantilla de registros</h4>
+                      <p className="mt-0.5 text-sm text-gray-600">
+                        Descarga una hoja Excel vacía con las columnas requeridas: Cedula, Nombre, Telefono, Correo Electronico, N° Torre, N° Apartamento, N° Control, Coeficiente.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleDownloadTemplate}
+                    disabled={isLoading}
+                    className="gap-2 shrink-0 border-blue-200 bg-white hover:bg-blue-50 hover:border-blue-300"
+                  >
+                    <Download className="h-4 w-4" />
+                    Descargar plantilla vacía
+                  </Button>
+                </div>
+              </div>
+
               <div>
                 <FieldLabel>Archivo Excel *</FieldLabel>
                 {!excelFile ? (
