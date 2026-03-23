@@ -36,8 +36,8 @@ def login(data_user: UserLogin, response: Response, db: Session = Depends(get_db
         {
             "sub": str(user.id),
             "is_admin": user.is_admin,
-        }, 
-        int(ACCESS_TOKEN_EXPIRE_MINUTES) if ACCESS_TOKEN_EXPIRE_MINUTES else 30
+        },
+        ACCESS_TOKEN_EXPIRE_MINUTES,
     )
 
     response.set_cookie(
@@ -46,7 +46,7 @@ def login(data_user: UserLogin, response: Response, db: Session = Depends(get_db
         httponly=True,
         secure=False,
         samesite="lax",
-        max_age=60 * (int(ACCESS_TOKEN_EXPIRE_MINUTES) if ACCESS_TOKEN_EXPIRE_MINUTES else 30)
+        max_age=60 * ACCESS_TOKEN_EXPIRE_MINUTES,
     )
 
     return {

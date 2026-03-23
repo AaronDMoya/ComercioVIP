@@ -19,7 +19,12 @@ PASSWORD = os.getenv("PASSWORD")
 # Variables de seguridad de Tokens JWT
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
-ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
+# JWT y cookie de sesión: minutos hasta expiración (por defecto 1 día = 1440 min)
+_raw_token_minutes = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440").strip()
+try:
+    ACCESS_TOKEN_EXPIRE_MINUTES = max(1, int(_raw_token_minutes or "1440"))
+except ValueError:
+    ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 
 # Variables de configuración CORS
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
