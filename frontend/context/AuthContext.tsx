@@ -109,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (token) {
                     setAuthToken(token);
                 }
+
                 // Normalizar usuario: el login devuelve "id", el tipo User usa "sub"
                 if (userFromLogin) {
                     const userData: User = {
@@ -152,9 +153,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             // Error de red o conexión
             console.error("Error en login:", error);
-            return { 
-                success: false, 
-                error: "Error de conexión. Verifica que el servidor esté disponible." 
+            return {
+                success: false,
+                error: "Error de conexión. Verifica que el servidor esté disponible."
             };
         }
     }
@@ -179,11 +180,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ *
  * Hook personalizado para acceder al contexto de autenticación
- * 
+ *
  * Uso:
  * const { user, login, logout } = useAuth();
- * 
+ *
  * @returns El contexto de autenticación con user, login y logout
  */
 export const useAuth = () => useContext(AuthContext);

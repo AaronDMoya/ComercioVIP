@@ -1054,7 +1054,7 @@ export default function DataPerson() {
 
   if (!registroSeleccionado) {
     return (
-      <Container className="px-6 h-full flex flex-col min-h-0">
+      <Container className="px-6 flex flex-col min-h-[12rem] lg:h-full lg:min-h-0">
         <div className="flex-1 flex items-center justify-center text-gray-500">
           <div className="text-center">
             <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -1066,7 +1066,7 @@ export default function DataPerson() {
   }
 
   return (
-    <Container className="px-3 md:px-6 h-full flex flex-col min-h-0">
+    <Container className="px-3 md:px-6 w-full flex flex-col min-h-0 lg:h-full lg:flex-1">
       {/* Información básica */}
       <div className="flex-shrink-0 flex flex-col sm:flex-row gap-3 md:gap-4 border-b pb-3 md:pb-4">
                 <User className="w-10 h-10 md:w-12 md:h-12 text-gray-500 bg-gray-200 p-2 rounded-full flex-shrink-0" />
@@ -1114,18 +1114,18 @@ export default function DataPerson() {
                     </div>
                 </div>
 
-      {/* Sección inferior: Gestión de Poderes y Actividad de Ingresos */}
-      <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-4 md:gap-6 mt-4 md:mt-6 overflow-hidden">
+      {/* Sección inferior: en móvil altura natural + scroll de página; en lg reparte altura */}
+      <div className="flex flex-col lg:flex-row gap-4 md:gap-6 mt-4 md:mt-6 lg:flex-1 lg:min-h-0 lg:overflow-hidden">
         {/* Gestión de Poderes - Izquierda */}
-        <div className="w-full lg:w-1/2 flex flex-col min-h-0">
+        <div className="w-full lg:w-1/2 flex flex-col lg:min-h-0 lg:flex-1">
           <div className="flex-shrink-0 flex items-center gap-2 border-b pb-2 mb-3 md:mb-4">
                 <Gavel className="w-4 h-4 md:w-5 md:h-5 text-orange-500" />
             <h3 className="text-base md:text-lg font-semibold">Gestión de Poderes</h3>
           </div>
 
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto overflow-x-auto">
-                <Table className="w-full min-w-[400px]">
+          <div className="flex flex-col lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+                <div className="overflow-x-auto lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
+                <Table className="w-full min-w-0 sm:min-w-[400px]">
                     <TableHeader>
                     <TableRow>
                         <TableHead className="text-xs md:text-sm">Torre/Bloque</TableHead>
@@ -1366,16 +1366,16 @@ export default function DataPerson() {
         <Separator orientation="vertical" className="hidden lg:block h-full" />
 
         {/* Actividad de Ingresos - Derecha */}
-        <div className="w-full lg:w-1/2 flex flex-col min-h-0">
+        <div className="w-full lg:w-1/2 flex flex-col lg:min-h-0 lg:flex-1">
           <div className="flex-shrink-0 flex items-center gap-2 border-b pb-2 mb-3 md:mb-4">
                 <Timer className="w-4 h-4 md:w-5 md:h-5 text-blue-500" />
             <h3 className="text-base md:text-lg font-semibold">Actividad de Ingresos</h3>
           </div>
 
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto overflow-x-auto">
+          <div className="flex flex-col lg:flex-1 lg:min-h-0 lg:overflow-hidden">
+                <div className="overflow-x-auto lg:flex-1 lg:min-h-0 lg:overflow-y-auto">
               {actividades.length > 0 ? (
-                <Table className="w-full min-w-[300px]">
+                <Table className="w-full min-w-0 sm:min-w-[300px]">
                     <TableHeader>
                     <TableRow>
                       <TableHead className="text-xs md:text-sm">Tipo</TableHead>
@@ -1392,7 +1392,7 @@ export default function DataPerson() {
                     </TableBody>
                 </Table>
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+                <div className="flex items-center justify-center min-h-[6rem] lg:h-full text-gray-400 text-sm py-6">
                   No hay actividades registradas
                 </div>
               )}

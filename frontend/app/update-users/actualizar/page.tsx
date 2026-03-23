@@ -11,7 +11,8 @@ import {
   type RegistroPublicResponse,
 } from "@/lib/services/updateUsersService";
 import { toast } from "sonner";
-import { Loader2, Scale } from "lucide-react";
+import { EyeIcon, EyeOffIcon, Loader2, Scale } from "lucide-react";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +39,12 @@ function ActualizarContent() {
   const [passwordValidated, setPasswordValidated] = useState(false);
   const [passwordInput, setPasswordInput] = useState("");
   const [validandoPassword, setValidandoPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const hrefIngresoAsamblea = (asambleaId: string | undefined | null) =>
+    asambleaId
+      ? `/update-users/ingreso?asamblea=${encodeURIComponent(asambleaId)}`
+      : "/update-users/ingreso";
 
   useEffect(() => {
     if (!token) {
@@ -99,7 +106,13 @@ function ActualizarContent() {
         telefono: telefono.trim() || undefined,
         correo: correo.trim() || undefined,
       });
-      router.push("/update-users/actualizado");
+      if (registro?.asamblea_id) {
+        router.push(
+          `/update-users/actualizado?asamblea=${encodeURIComponent(registro.asamblea_id)}`
+        );
+      } else {
+        router.push("/update-users/actualizado");
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al guardar");
     } finally {
@@ -118,7 +131,7 @@ function ActualizarContent() {
           </p>
           <Button
             className="mt-6"
-            onClick={() => window.location.assign("/update-users/ingreso")}
+            onClick={() => window.location.assign(hrefIngresoAsamblea(null))}
           >
             Ir a ingreso
           </Button>
@@ -173,7 +186,7 @@ function ActualizarContent() {
           open={true}
           onOpenChange={(open) => {
             if (!open) {
-              window.location.assign("/update-users/ingreso");
+              window.location.assign(hrefIngresoAsamblea(registro.asamblea_id));
             }
           }}
         >
@@ -189,20 +202,34 @@ function ActualizarContent() {
             <form onSubmit={handleValidatePassword} className="space-y-4">
               <div>
                 <FieldLabel className="mb-1">Contraseña</FieldLabel>
-                <Input
-                  type="password"
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  autoComplete="off"
-                  placeholder="Ej: 1234567891101"
-                  required
-                />
+                <InputGroup className="transition-smooth">
+                  <InputGroupInput
+                    type={showPassword ? "text" : "password"}
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    autoComplete="off"
+                    placeholder="Ej: 1234567891101"
+                    required
+                  />
+                  <InputGroupAddon
+                    align="inline-end"
+                    className="cursor-pointer"
+                    onClick={() => setShowPassword((v) => !v)}
+                    title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  >
+                    {showPassword ? (
+                      <EyeIcon className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <EyeOffIcon className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </InputGroupAddon>
+                </InputGroup>
               </div>
               <DialogFooter className="gap-2 sm:gap-0">
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => window.location.assign("/update-users/ingreso")}
+                  onClick={() => window.location.assign(hrefIngresoAsamblea(registro.asamblea_id))}
                   disabled={validandoPassword}
                 >
                   Cancelar

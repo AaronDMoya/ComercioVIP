@@ -84,7 +84,7 @@ export default function AppSidebar() {
           <Scale className="w-10 h-10 text-white bg-blue-600 p-2 rounded-lg transition-transform duration-300 hover:rotate-12" />
           <div>
             <h1 className="text-sm font-semibold text-gray-900">Sistema Asamblea PRO</h1>
-            <p className="text-xs text-gray-500">v1.1.1</p>
+            <p className="text-xs text-gray-500">v1.1.2</p>
           </div>
         </div>
 
